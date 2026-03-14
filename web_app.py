@@ -89,13 +89,50 @@ def _is_pdf(filename: str) -> bool:
 
 
 def extract_text_from_pdf(pdf_path: str) -> str:
-    reader = PdfReader(pdf_path)
-    pages_text = []
-    for page in reader.pages:
-        text = page.extract_text()
-        if text:
-            pages_text.append(text)
-    return "\n".join(pages_text)[:15000]
+    """Extrae texto de un PDF. Si PyPDF2 no extrae texto de alguna página
+    (PDF escaneado/imagen), usa el modelo de visión como fallback."""
+    import fitz  # PyMuPDF - mejor extracción que PyPDF2
+
+    try:
+        doc = fitz.open(pdf_path)
+        pages_text = []
+        empty_pages = []
+        for i, page in enumerate(doc):
+            text = page.get_text()
+            if text and text.strip():
+                pages_text.append(f"--- Página {i + 1} ---\n{text.strip()}")
+            else:
+                empty_pages.append(i)
+        doc.close()
+
+        # Si hay páginas vacías (escaneadas), intentar con visión
+        if empty_pages and len(empty_pages) <= 5:
+            doc = fitz.open(pdf_path)
+            for page_idx in empty_pages:
+                page = doc[page_idx]
+                pix = page.get_pixmap(dpi=200)
+                img_path = os.path.join(UPLOAD_FOLDER, f"pdf_page_{page_idx}.png")
+                os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+                pix.save(img_path)
+                try:
+                    ocr_text = extract_text_from_image(img_path)
+                    if ocr_text:
+                        pages_text.insert(page_idx, f"--- Página {page_idx + 1} (OCR) ---\n{ocr_text}")
+                except Exception:
+                    pass
+            doc.close()
+
+        return "\n\n".join(pages_text)
+
+    except Exception:
+        # Fallback a PyPDF2
+        reader = PdfReader(pdf_path)
+        pages_text = []
+        for i, page in enumerate(reader.pages):
+            text = page.extract_text()
+            if text:
+                pages_text.append(f"--- Página {i + 1} ---\n{text}")
+        return "\n\n".join(pages_text)
 
 
 def extract_text_from_image(image_path: str) -> str:
@@ -134,14 +171,17 @@ def _fetch_url_safe(user_url: str) -> http_requests.Response:
     safe_url += parsed.path
     if parsed.query:
         safe_url += f"?{parsed.query}"
-    return http_requests.get(safe_url, headers={"User-Agent": "ACA-Bot/1.0"}, timeout=15, allow_redirects=False)
+    return http_requests.get(safe_url, headers={"User-Agent": "ACA-Bot/1.0"}, timeout=30, allow_redirects=True)
 
 
 def extract_text_from_url(user_url: str) -> str:
     resp = _fetch_url_safe(user_url)
     resp.raise_for_status()
     content_type = resp.headers.get("Content-Type", "")
-    if "application/pdf" in content_type:
+    # Detectar PDF por content-type O por extensión de URL
+    url_path = urlparse(user_url).path.lower()
+    is_pdf = "application/pdf" in content_type or url_path.endswith(".pdf")
+    if is_pdf:
         os.makedirs(UPLOAD_FOLDER, exist_ok=True)
         tmp = os.path.join(UPLOAD_FOLDER, "url_temp.pdf")
         with open(tmp, "wb") as f:
