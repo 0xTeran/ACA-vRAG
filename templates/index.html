@@ -7,452 +7,353 @@
     <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
     <style>
-        body { background: #0f172a; }
-        .glass { background: rgba(30,41,59,0.7); backdrop-filter: blur(12px); border: 1px solid rgba(100,116,139,0.3); }
-        .gradient-border { background: linear-gradient(135deg,#3b82f6,#8b5cf6,#ec4899); padding: 2px; border-radius: 1rem; }
-        .gradient-border > div { border-radius: calc(1rem - 2px); }
-        .tab-active { background: linear-gradient(135deg,#3b82f6,#8b5cf6); color: white; }
-        .tab-inactive { background: rgba(51,65,85,0.5); color: #94a3b8; }
-        .pulse-dot { width:10px;height:10px;background:#3b82f6;border-radius:50%;animation:pulse 1.5s infinite; }
-        @keyframes pulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:.5;transform:scale(1.5)} }
-        .result-section { animation: fadeIn .5s ease-in; }
-        @keyframes fadeIn { from{opacity:0;transform:translateY(10px)} to{opacity:1;transform:translateY(0)} }
-        .markdown-body h3 { color:#60a5fa;font-size:1.1rem;font-weight:700;margin-top:1rem; }
-        .markdown-body strong { color:#e2e8f0; }
-        .markdown-body table { width:100%;border-collapse:collapse;margin:.5rem 0;font-size:.85rem; }
-        .markdown-body th,.markdown-body td { border:1px solid #334155;padding:6px 10px;text-align:left; }
-        .markdown-body th { background:#1e293b;color:#93c5fd; }
-        .markdown-body td { color:#cbd5e1; }
-        .markdown-body p { margin:.3rem 0; }
-        .markdown-body ul,.markdown-body ol { padding-left:1.5rem; }
-        .markdown-body li { color:#cbd5e1;margin:.2rem 0; }
-        textarea:focus,input:focus { outline:none;box-shadow:0 0 0 2px #3b82f6; }
-        .chat-user { background:rgba(59,130,246,.15);border-left:3px solid #3b82f6; }
-        .chat-assistant { background:rgba(16,185,129,.1);border-left:3px solid #10b981; }
-        .chat-bubble { padding:10px 14px;border-radius:.5rem; }
-        .chat-bubble .markdown-body h3 { margin-top:.5rem; }
-        #chat-messages::-webkit-scrollbar { width:6px; }
-        #chat-messages::-webkit-scrollbar-track { background:transparent; }
-        #chat-messages::-webkit-scrollbar-thumb { background:#334155;border-radius:3px; }
-        #preview-file { max-height:150px;border-radius:.5rem;border:1px solid #334155; }
-        .source-card { background:rgba(30,41,59,.5);border:1px solid #334155;border-radius:.5rem;padding:10px 14px;transition:border-color .2s; }
-        .source-card:hover { border-color:#3b82f6; }
+        body{background:#0f172a}
+        .glass{background:rgba(30,41,59,.7);backdrop-filter:blur(12px);border:1px solid rgba(100,116,139,.3)}
+        .gradient-border{background:linear-gradient(135deg,#3b82f6,#8b5cf6,#ec4899);padding:2px;border-radius:1rem}
+        .gradient-border>div{border-radius:calc(1rem - 2px)}
+        .tab-active{background:linear-gradient(135deg,#3b82f6,#8b5cf6);color:#fff}
+        .tab-inactive{background:rgba(51,65,85,.5);color:#94a3b8}
+        .pulse-dot{width:10px;height:10px;background:#3b82f6;border-radius:50%;animation:pulse 1.5s infinite}
+        @keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.5;transform:scale(1.5)}}
+        .result-section{animation:fadeIn .5s ease-in}
+        @keyframes fadeIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+        .markdown-body h3{color:#60a5fa;font-size:1.1rem;font-weight:700;margin-top:1rem}
+        .markdown-body strong{color:#e2e8f0}
+        .markdown-body table{width:100%;border-collapse:collapse;margin:.5rem 0;font-size:.85rem}
+        .markdown-body th,.markdown-body td{border:1px solid #334155;padding:6px 10px;text-align:left}
+        .markdown-body th{background:#1e293b;color:#93c5fd}
+        .markdown-body td{color:#cbd5e1}
+        .markdown-body p{margin:.3rem 0}
+        .markdown-body ul,.markdown-body ol{padding-left:1.5rem}
+        .markdown-body li{color:#cbd5e1;margin:.2rem 0}
+        textarea:focus,input:focus{outline:none;box-shadow:0 0 0 2px #3b82f6}
+        .chat-user{background:rgba(59,130,246,.15);border-left:3px solid #3b82f6}
+        .chat-assistant{background:rgba(16,185,129,.1);border-left:3px solid #10b981}
+        .chat-bubble{padding:10px 14px;border-radius:.5rem}
+        .source-card{background:rgba(30,41,59,.5);border:1px solid #334155;border-radius:.5rem;padding:10px 14px;transition:border-color .2s}
+        .source-card:hover{border-color:#3b82f6}
+        .metric-card{background:rgba(30,41,59,.5);border:1px solid #334155;border-radius:.75rem;padding:12px 16px;text-align:center}
+        .status-badge{padding:2px 10px;border-radius:9999px;font-size:.7rem;font-weight:600;text-transform:uppercase}
+        .status-pendiente{background:rgba(234,179,8,.2);color:#facc15}
+        .status-aprobada{background:rgba(34,197,94,.2);color:#22c55e}
+        .status-rechazada{background:rgba(239,68,68,.2);color:#ef4444}
+        .status-investigar{background:rgba(168,85,247,.2);color:#a855f7}
+        #chat-messages::-webkit-scrollbar{width:6px}
+        #chat-messages::-webkit-scrollbar-thumb{background:#334155;border-radius:3px}
+        .hist-row{border-bottom:1px solid #1e293b;padding:8px 0;cursor:pointer;transition:background .15s}
+        .hist-row:hover{background:rgba(59,130,246,.08)}
     </style>
 </head>
 <body class="min-h-screen text-gray-200">
     <header class="py-6 px-4">
-        <div class="max-w-4xl mx-auto text-center">
+        <div class="max-w-5xl mx-auto text-center">
             <div class="flex items-center justify-center gap-3 mb-2">
                 <i class="fas fa-globe-americas text-3xl text-blue-400"></i>
                 <h1 class="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-400 via-purple-400 to-pink-400">ACA</h1>
             </div>
             <p class="text-gray-400 text-sm">Agente de Clasificaci&oacute;n Arancelaria &mdash; Decreto 1881/2021 &mdash; DIAN Colombia</p>
-            <p class="text-gray-600 text-xs mt-1">Powered by Claude Sonnet (Anthropic)</p>
+            <!-- Nav tabs -->
+            <div class="flex justify-center gap-4 mt-4">
+                <button onclick="showPage('clasificar')" id="nav-clasificar" class="text-sm text-blue-400 border-b-2 border-blue-400 pb-1 font-medium">Clasificar</button>
+                <button onclick="showPage('historial')" id="nav-historial" class="text-sm text-gray-500 border-b-2 border-transparent pb-1 hover:text-gray-300">Historial</button>
+                <button onclick="showPage('importar')" id="nav-importar" class="text-sm text-gray-500 border-b-2 border-transparent pb-1 hover:text-gray-300">Importar BD</button>
+            </div>
         </div>
     </header>
 
-    <main class="max-w-4xl mx-auto px-4 pb-12">
-        <!-- Input Card -->
-        <div class="gradient-border mb-8">
-            <div class="bg-gray-900 p-6 rounded-xl">
-                <div class="flex flex-wrap gap-2 mb-6">
-                    <button onclick="switchTab('texto')" id="tab-texto" class="tab-active px-5 py-2 rounded-lg text-sm font-medium transition-all">
-                        <i class="fas fa-keyboard mr-2"></i>Texto
-                    </button>
-                    <button onclick="switchTab('url')" id="tab-url" class="tab-inactive px-5 py-2 rounded-lg text-sm font-medium transition-all">
-                        <i class="fas fa-link mr-2"></i>URL
-                    </button>
-                    <button onclick="switchTab('archivo')" id="tab-archivo" class="tab-inactive px-5 py-2 rounded-lg text-sm font-medium transition-all">
-                        <i class="fas fa-file-upload mr-2"></i>PDF / Imagen
-                    </button>
-                </div>
+    <main class="max-w-5xl mx-auto px-4 pb-12">
 
-                <form id="form-clasificar" enctype="multipart/form-data">
-                    <input type="hidden" name="input_type" id="input_type" value="texto">
-
-                    <div id="panel-texto">
-                        <textarea name="ficha_texto" id="ficha_texto" rows="8"
-                            class="w-full bg-gray-800 border border-gray-700 rounded-lg p-4 text-gray-200 text-sm resize-y placeholder-gray-500"
-                            placeholder="Pegue aqu&iacute; la ficha t&eacute;cnica del producto..."></textarea>
+        <!-- ══════ PAGE: CLASIFICAR ══════ -->
+        <div id="page-clasificar">
+            <div class="gradient-border mb-8">
+                <div class="bg-gray-900 p-6 rounded-xl">
+                    <div class="flex flex-wrap gap-2 mb-6">
+                        <button onclick="switchTab('texto')" id="tab-texto" class="tab-active px-5 py-2 rounded-lg text-sm font-medium transition-all"><i class="fas fa-keyboard mr-2"></i>Texto</button>
+                        <button onclick="switchTab('url')" id="tab-url" class="tab-inactive px-5 py-2 rounded-lg text-sm font-medium transition-all"><i class="fas fa-link mr-2"></i>URL</button>
+                        <button onclick="switchTab('archivo')" id="tab-archivo" class="tab-inactive px-5 py-2 rounded-lg text-sm font-medium transition-all"><i class="fas fa-file-upload mr-2"></i>PDF / Imagen</button>
                     </div>
-
-                    <div id="panel-url" class="hidden">
-                        <input type="url" name="ficha_url" id="ficha_url"
-                            class="w-full bg-gray-800 border border-gray-700 rounded-lg p-4 text-gray-200 text-sm placeholder-gray-500"
-                            placeholder="https://ejemplo.com/ficha-tecnica.pdf">
-                        <p class="text-xs text-gray-500 mt-2"><i class="fas fa-info-circle mr-1"></i>URL de p&aacute;gina web, imagen o PDF con la ficha t&eacute;cnica.</p>
-                    </div>
-
-                    <div id="panel-archivo" class="hidden">
-                        <label class="flex flex-col items-center justify-center w-full h-40 border-2 border-dashed border-gray-600 rounded-lg cursor-pointer hover:border-blue-500 transition-colors" id="drop-zone">
-                            <div id="upload-placeholder" class="text-center">
-                                <i class="fas fa-cloud-upload-alt text-3xl text-gray-500 mb-2"></i>
-                                <p class="text-sm text-gray-400">Arrastre un archivo o haga clic para seleccionar</p>
-                                <p class="text-xs text-gray-500 mt-1">PDF, PNG, JPG, WEBP (max 32MB)</p>
-                            </div>
-                            <div id="file-preview" class="hidden text-center">
-                                <i id="file-icon" class="fas fa-file-pdf text-4xl text-red-400 mb-2"></i>
-                                <p id="file-name" class="text-sm text-gray-300"></p>
-                            </div>
-                            <input type="file" name="ficha_archivo" id="ficha_archivo" accept=".pdf,.png,.jpg,.jpeg,.webp,.gif,.bmp,image/*" class="hidden">
-                        </label>
-                    </div>
-
-                    <button type="submit" id="btn-clasificar"
-                        class="mt-5 w-full py-3 rounded-lg font-semibold text-white bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed">
-                        <i class="fas fa-search"></i> Clasificar Producto
-                    </button>
-                </form>
-            </div>
-        </div>
-
-        <!-- Loading -->
-        <div id="loading" class="hidden mb-8">
-            <div class="glass rounded-xl p-6">
-                <div class="flex items-center gap-4">
-                    <div class="pulse-dot"></div>
-                    <div>
-                        <p class="text-blue-300 font-medium">Procesando clasificaci&oacute;n...</p>
-                        <p class="text-xs text-gray-500 mt-1">3 agentes trabajando &mdash; puede tomar 60-90 segundos</p>
-                    </div>
-                </div>
-                <div class="mt-4 space-y-2">
-                    <div class="flex items-center gap-2 text-sm" id="step-1">
-                        <i class="fas fa-circle-notch fa-spin text-yellow-400"></i>
-                        <span class="text-gray-300">Agente Investigador buscando resoluciones DIAN + Perplexity...</span>
-                    </div>
-                    <div class="flex items-center gap-2 text-sm" id="step-2">
-                        <i class="fas fa-circle text-gray-700 text-xs"></i>
-                        <span class="text-gray-600">Agente Clasificador pendiente...</span>
-                    </div>
-                    <div class="flex items-center gap-2 text-sm" id="step-3">
-                        <i class="fas fa-circle text-gray-700 text-xs"></i>
-                        <span class="text-gray-600">Agente Validador pendiente...</span>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Error -->
-        <div id="error-box" class="hidden mb-8">
-            <div class="bg-red-900 bg-opacity-30 border border-red-700 rounded-xl p-5">
-                <div class="flex items-start gap-3">
-                    <i class="fas fa-exclamation-triangle text-red-400 mt-1"></i>
-                    <div>
-                        <p class="text-red-300 font-medium">Error</p>
-                        <p class="text-red-400 text-sm mt-1" id="error-message"></p>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Results -->
-        <div id="results" class="hidden space-y-6">
-            <div id="ficha-extraida-box" class="hidden result-section">
-                <div class="glass rounded-xl p-5">
-                    <h2 class="flex items-center gap-2 text-gray-300 font-semibold mb-3">
-                        <i class="fas fa-file-alt text-gray-400"></i> Ficha T&eacute;cnica Extra&iacute;da
-                    </h2>
-                    <pre id="ficha-extraida" class="text-sm text-gray-400 whitespace-pre-wrap bg-gray-800 bg-opacity-50 rounded-lg p-4 max-h-48 overflow-y-auto"></pre>
-                </div>
-            </div>
-
-            <!-- 1. Investigador DIAN (primero) -->
-            <div class="result-section">
-                <div class="glass rounded-xl p-5">
-                    <h2 class="flex items-center gap-2 text-yellow-300 font-semibold mb-3">
-                        <i class="fas fa-search-plus text-yellow-400"></i> Paso 1: Agente Investigador &mdash; Resoluciones DIAN
-                    </h2>
-                    <p class="text-xs text-gray-500 mb-3">Fuentes: dian.gov.co + Perplexity (b&uacute;squeda en internet)</p>
-                    <div id="result-investigacion" class="markdown-body text-sm text-gray-300"></div>
-
-                    <div id="fuentes-box" class="hidden mt-4">
-                        <h3 class="text-xs text-gray-500 uppercase tracking-wider mb-2">Fuentes consultadas</h3>
-                        <div id="fuentes-list" class="space-y-2 max-h-60 overflow-y-auto"></div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- 2. Clasificador (segundo, informado por la investigación) -->
-            <div class="result-section">
-                <div class="glass rounded-xl p-5">
-                    <h2 class="flex items-center gap-2 text-blue-300 font-semibold mb-3">
-                        <i class="fas fa-tags text-blue-400"></i> Paso 2: Agente Clasificador
-                    </h2>
-                    <p class="text-xs text-gray-500 mb-3">Clasificaci&oacute;n basada en el arancel + hallazgos del investigador</p>
-                    <div id="result-clasificacion" class="markdown-body text-sm text-gray-300"></div>
-                </div>
-            </div>
-
-            <!-- 3. Validador (tercero) -->
-            <div class="result-section">
-                <div class="glass rounded-xl p-5">
-                    <h2 class="flex items-center gap-2 text-purple-300 font-semibold mb-3">
-                        <i class="fas fa-check-double text-purple-400"></i> Paso 3: Agente Validador
-                    </h2>
-                    <div id="result-validacion" class="markdown-body text-sm text-gray-300"></div>
-                </div>
-            </div>
-
-            <!-- Chat -->
-            <div class="result-section">
-                <div class="glass rounded-xl p-5">
-                    <h2 class="flex items-center gap-2 text-green-300 font-semibold mb-3">
-                        <i class="fas fa-comments text-green-400"></i> Consultar sobre la clasificaci&oacute;n
-                    </h2>
-                    <p class="text-xs text-gray-500 mb-4">Pregunta sobre reglas, resoluciones DIAN, subpartidas alternativas, gravamen, etc.</p>
-                    <div id="chat-messages" class="space-y-3 mb-4 max-h-96 overflow-y-auto pr-2"></div>
-                    <div id="chat-loading" class="hidden mb-3">
-                        <div class="flex items-center gap-2 text-sm text-gray-400">
-                            <i class="fas fa-circle-notch fa-spin text-green-400"></i><span>Pensando...</span>
+                    <form id="form-clasificar" enctype="multipart/form-data">
+                        <input type="hidden" name="input_type" id="input_type" value="texto">
+                        <div id="panel-texto"><textarea name="ficha_texto" id="ficha_texto" rows="7" class="w-full bg-gray-800 border border-gray-700 rounded-lg p-4 text-gray-200 text-sm resize-y placeholder-gray-500" placeholder="Pegue la ficha t&eacute;cnica del producto..."></textarea></div>
+                        <div id="panel-url" class="hidden"><input type="url" name="ficha_url" id="ficha_url" class="w-full bg-gray-800 border border-gray-700 rounded-lg p-4 text-gray-200 text-sm placeholder-gray-500" placeholder="https://ejemplo.com/ficha.pdf"></div>
+                        <div id="panel-archivo" class="hidden">
+                            <label class="flex flex-col items-center justify-center w-full h-36 border-2 border-dashed border-gray-600 rounded-lg cursor-pointer hover:border-blue-500" id="drop-zone">
+                                <div id="upload-placeholder" class="text-center"><i class="fas fa-cloud-upload-alt text-3xl text-gray-500 mb-2"></i><p class="text-sm text-gray-400">PDF, PNG, JPG, WEBP (max 32MB)</p></div>
+                                <div id="file-preview" class="hidden text-center"><i id="file-icon" class="fas fa-file-pdf text-4xl text-red-400 mb-2"></i><p id="file-name" class="text-sm text-gray-300"></p></div>
+                                <input type="file" name="ficha_archivo" id="ficha_archivo" accept=".pdf,.png,.jpg,.jpeg,.webp,.gif,.bmp,image/*" class="hidden">
+                            </label>
                         </div>
-                    </div>
-                    <div class="flex gap-2">
-                        <input type="text" id="chat-input"
-                            class="flex-1 bg-gray-800 border border-gray-700 rounded-lg px-4 py-2.5 text-gray-200 text-sm placeholder-gray-500"
-                            placeholder="Ej: &iquest;Hay resoluciones DIAN que respalden esta clasificaci&oacute;n?"
-                            autocomplete="off">
-                        <button id="btn-chat"
-                            class="px-5 py-2.5 rounded-lg font-medium text-white bg-gradient-to-r from-green-600 to-teal-600 hover:from-green-500 hover:to-teal-500 transition-all disabled:opacity-50 disabled:cursor-not-allowed">
-                            <i class="fas fa-paper-plane"></i>
-                        </button>
+                        <button type="submit" id="btn-clasificar" class="mt-4 w-full py-3 rounded-lg font-semibold text-white bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"><i class="fas fa-search"></i> Clasificar Producto</button>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Loading -->
+            <div id="loading" class="hidden mb-8">
+                <div class="glass rounded-xl p-6">
+                    <div class="flex items-center gap-4"><div class="pulse-dot"></div><div><p class="text-blue-300 font-medium">Procesando...</p><p class="text-xs text-gray-500 mt-1">3 agentes + base de conocimiento</p></div></div>
+                    <div class="mt-4 space-y-2">
+                        <div id="step-1" class="flex items-center gap-2 text-sm"><i class="fas fa-circle-notch fa-spin text-yellow-400"></i><span class="text-gray-300">Investigador buscando resoluciones DIAN...</span></div>
+                        <div id="step-2" class="flex items-center gap-2 text-sm"><i class="fas fa-circle text-gray-700 text-xs"></i><span class="text-gray-600">Clasificador pendiente...</span></div>
+                        <div id="step-3" class="flex items-center gap-2 text-sm"><i class="fas fa-circle text-gray-700 text-xs"></i><span class="text-gray-600">Validador pendiente...</span></div>
                     </div>
                 </div>
             </div>
 
-            <div class="text-center text-xs text-gray-600">
-                <i class="fas fa-microchip mr-1"></i> Tokens utilizados: <span id="tokens-count"></span>
+            <!-- Error -->
+            <div id="error-box" class="hidden mb-8"><div class="bg-red-900 bg-opacity-30 border border-red-700 rounded-xl p-5"><i class="fas fa-exclamation-triangle text-red-400 mr-2"></i><span class="text-red-400 text-sm" id="error-message"></span></div></div>
+
+            <!-- Results -->
+            <div id="results" class="hidden space-y-6">
+                <!-- Metrics bar -->
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-3 result-section">
+                    <div class="metric-card"><p class="text-xs text-gray-500">Tiempo</p><p class="text-lg font-bold text-blue-400" id="m-tiempo">-</p></div>
+                    <div class="metric-card"><p class="text-xs text-gray-500">Costo COP</p><p class="text-lg font-bold text-green-400" id="m-cop">-</p></div>
+                    <div class="metric-card"><p class="text-xs text-gray-500">Costo USD</p><p class="text-lg font-bold text-yellow-400" id="m-usd">-</p></div>
+                    <div class="metric-card"><p class="text-xs text-gray-500">Tokens</p><p class="text-lg font-bold text-purple-400" id="m-tokens">-</p></div>
+                </div>
+
+                <!-- Ficha extraída -->
+                <div id="ficha-extraida-box" class="hidden result-section"><div class="glass rounded-xl p-5"><h2 class="flex items-center gap-2 text-gray-300 font-semibold mb-3"><i class="fas fa-file-alt text-gray-400"></i> Ficha Extra&iacute;da</h2><pre id="ficha-extraida" class="text-sm text-gray-400 whitespace-pre-wrap bg-gray-800 bg-opacity-50 rounded-lg p-4 max-h-40 overflow-y-auto"></pre></div></div>
+
+                <!-- Investigador -->
+                <div class="result-section"><div class="glass rounded-xl p-5">
+                    <h2 class="flex items-center gap-2 text-yellow-300 font-semibold mb-2"><i class="fas fa-search-plus text-yellow-400"></i> Paso 1: Investigador DIAN</h2>
+                    <div id="result-investigacion" class="markdown-body text-sm text-gray-300"></div>
+                    <div id="fuentes-box" class="hidden mt-4"><h3 class="text-xs text-gray-500 uppercase tracking-wider mb-2">Fuentes</h3><div id="fuentes-list" class="space-y-2 max-h-48 overflow-y-auto"></div></div>
+                </div></div>
+
+                <!-- Clasificador -->
+                <div class="result-section"><div class="glass rounded-xl p-5">
+                    <h2 class="flex items-center gap-2 text-blue-300 font-semibold mb-2"><i class="fas fa-tags text-blue-400"></i> Paso 2: Clasificador</h2>
+                    <div id="result-clasificacion" class="markdown-body text-sm text-gray-300"></div>
+                </div></div>
+
+                <!-- Validador -->
+                <div class="result-section"><div class="glass rounded-xl p-5">
+                    <h2 class="flex items-center gap-2 text-purple-300 font-semibold mb-2"><i class="fas fa-check-double text-purple-400"></i> Paso 3: Validador</h2>
+                    <div id="result-validacion" class="markdown-body text-sm text-gray-300"></div>
+                </div></div>
+
+                <!-- Acciones: Aprobar / Rechazar / Investigar -->
+                <div class="result-section">
+                    <div class="glass rounded-xl p-5">
+                        <h2 class="flex items-center gap-2 text-gray-300 font-semibold mb-3"><i class="fas fa-gavel text-gray-400"></i> Decisi&oacute;n</h2>
+                        <textarea id="notas-decision" rows="2" class="w-full bg-gray-800 border border-gray-700 rounded-lg p-3 text-gray-200 text-sm mb-3 placeholder-gray-500" placeholder="Notas opcionales sobre la decisi&oacute;n..."></textarea>
+                        <div class="flex flex-wrap gap-3">
+                            <button onclick="setEstado('aprobada')" class="px-6 py-2.5 rounded-lg font-medium text-white bg-green-600 hover:bg-green-500 transition-all"><i class="fas fa-check mr-2"></i>Aprobar</button>
+                            <button onclick="setEstado('rechazada')" class="px-6 py-2.5 rounded-lg font-medium text-white bg-red-600 hover:bg-red-500 transition-all"><i class="fas fa-times mr-2"></i>Rechazar</button>
+                            <button onclick="setEstado('investigar')" class="px-6 py-2.5 rounded-lg font-medium text-white bg-purple-600 hover:bg-purple-500 transition-all"><i class="fas fa-microscope mr-2"></i>Investigar m&aacute;s</button>
+                        </div>
+                        <div id="estado-feedback" class="hidden mt-3 text-sm"></div>
+                    </div>
+                </div>
+
+                <!-- Chat -->
+                <div class="result-section"><div class="glass rounded-xl p-5">
+                    <h2 class="flex items-center gap-2 text-green-300 font-semibold mb-3"><i class="fas fa-comments text-green-400"></i> Chat</h2>
+                    <div id="chat-messages" class="space-y-3 mb-4 max-h-80 overflow-y-auto pr-2"></div>
+                    <div id="chat-loading" class="hidden mb-3"><div class="flex items-center gap-2 text-sm text-gray-400"><i class="fas fa-circle-notch fa-spin text-green-400"></i><span>Pensando...</span></div></div>
+                    <div class="flex gap-2">
+                        <input type="text" id="chat-input" class="flex-1 bg-gray-800 border border-gray-700 rounded-lg px-4 py-2.5 text-gray-200 text-sm placeholder-gray-500" placeholder="Pregunta sobre la clasificaci&oacute;n..." autocomplete="off">
+                        <button id="btn-chat" class="px-5 py-2.5 rounded-lg font-medium text-white bg-gradient-to-r from-green-600 to-teal-600 hover:from-green-500 hover:to-teal-500 transition-all disabled:opacity-50"><i class="fas fa-paper-plane"></i></button>
+                    </div>
+                </div></div>
+            </div>
+        </div>
+
+        <!-- ══════ PAGE: HISTORIAL ══════ -->
+        <div id="page-historial" class="hidden">
+            <div class="glass rounded-xl p-5 mb-4">
+                <div class="flex items-center justify-between mb-4">
+                    <h2 class="text-lg font-semibold text-gray-200"><i class="fas fa-history mr-2 text-blue-400"></i>Historial de clasificaciones</h2>
+                    <div class="flex gap-2">
+                        <button onclick="loadHistorial()" class="text-xs text-blue-400 hover:text-blue-300"><i class="fas fa-sync-alt mr-1"></i>Refrescar</button>
+                    </div>
+                </div>
+                <div class="flex gap-2 mb-4 flex-wrap">
+                    <button onclick="loadHistorial()" class="text-xs px-3 py-1 rounded bg-gray-700 text-gray-300 hover:bg-gray-600">Todos</button>
+                    <button onclick="loadHistorial('pendiente')" class="text-xs px-3 py-1 rounded bg-yellow-900 text-yellow-300 hover:bg-yellow-800">Pendientes</button>
+                    <button onclick="loadHistorial('aprobada')" class="text-xs px-3 py-1 rounded bg-green-900 text-green-300 hover:bg-green-800">Aprobadas</button>
+                    <button onclick="loadHistorial('rechazada')" class="text-xs px-3 py-1 rounded bg-red-900 text-red-300 hover:bg-red-800">Rechazadas</button>
+                    <button onclick="loadHistorial('investigar')" class="text-xs px-3 py-1 rounded bg-purple-900 text-purple-300 hover:bg-purple-800">Por investigar</button>
+                </div>
+                <div id="historial-list" class="space-y-1 max-h-96 overflow-y-auto text-sm"></div>
+                <p id="historial-empty" class="hidden text-gray-500 text-sm text-center py-8">No hay clasificaciones a&uacute;n.</p>
+            </div>
+        </div>
+
+        <!-- ══════ PAGE: IMPORTAR BD ══════ -->
+        <div id="page-importar" class="hidden">
+            <div class="glass rounded-xl p-5">
+                <h2 class="text-lg font-semibold text-gray-200 mb-4"><i class="fas fa-database mr-2 text-blue-400"></i>Importar base de conocimiento</h2>
+                <p class="text-sm text-gray-400 mb-4">Suba un archivo CSV o JSON con clasificaciones previas. Campos esperados: <code class="text-blue-300">producto</code>, <code class="text-blue-300">subpartida</code>, <code class="text-blue-300">gravamen</code> (opcional), <code class="text-blue-300">justificacion</code> (opcional), <code class="text-blue-300">fuente</code> (opcional).</p>
+                <form id="form-importar" enctype="multipart/form-data">
+                    <input type="file" name="archivo" id="import-file" accept=".csv,.json" class="block w-full text-sm text-gray-400 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-blue-600 file:text-white hover:file:bg-blue-500 mb-4">
+                    <button type="submit" class="px-6 py-2.5 rounded-lg font-medium text-white bg-blue-600 hover:bg-blue-500 disabled:opacity-50"><i class="fas fa-upload mr-2"></i>Importar</button>
+                </form>
+                <div id="import-result" class="hidden mt-4 text-sm"></div>
+                <div class="mt-6 pt-4 border-t border-gray-700">
+                    <h3 class="text-sm font-medium text-gray-400 mb-2">Estad&iacute;sticas</h3>
+                    <p class="text-sm text-gray-500">Registros en base de conocimiento: <span id="kb-count" class="text-blue-400 font-bold">-</span></p>
+                </div>
             </div>
         </div>
     </main>
 
     <script>
-        const tabs = ['texto', 'url', 'archivo'];
+        // ── Navigation ──
+        function showPage(page) {
+            ['clasificar','historial','importar'].forEach(p => {
+                document.getElementById('page-' + p).classList.toggle('hidden', p !== page);
+                const nav = document.getElementById('nav-' + p);
+                nav.className = p === page ? 'text-sm text-blue-400 border-b-2 border-blue-400 pb-1 font-medium' : 'text-sm text-gray-500 border-b-2 border-transparent pb-1 hover:text-gray-300';
+            });
+            if (page === 'historial') loadHistorial();
+            if (page === 'importar') loadKBStats();
+        }
 
+        // ── Tabs ──
+        const tabs = ['texto','url','archivo'];
         function switchTab(tab) {
             document.getElementById('input_type').value = tab;
             tabs.forEach(t => {
-                document.getElementById('tab-' + t).className = t === tab
-                    ? 'tab-active px-5 py-2 rounded-lg text-sm font-medium transition-all'
-                    : 'tab-inactive px-5 py-2 rounded-lg text-sm font-medium transition-all';
-                document.getElementById('panel-' + t).classList.toggle('hidden', t !== tab);
+                document.getElementById('tab-'+t).className = t===tab?'tab-active px-5 py-2 rounded-lg text-sm font-medium transition-all':'tab-inactive px-5 py-2 rounded-lg text-sm font-medium transition-all';
+                document.getElementById('panel-'+t).classList.toggle('hidden',t!==tab);
             });
         }
 
-        // File upload preview
+        // File preview
         const fileInput = document.getElementById('ficha_archivo');
-        fileInput.addEventListener('change', function() {
-            const file = this.files[0];
-            if (!file) return;
-            const placeholder = document.getElementById('upload-placeholder');
-            const preview = document.getElementById('file-preview');
-            const icon = document.getElementById('file-icon');
-            const fname = document.getElementById('file-name');
-
-            placeholder.classList.add('hidden');
-            preview.classList.remove('hidden');
-            fname.textContent = file.name;
-
-            if (file.name.toLowerCase().endsWith('.pdf')) {
-                icon.className = 'fas fa-file-pdf text-4xl text-red-400 mb-2';
-            } else {
-                icon.className = 'fas fa-file-image text-4xl text-blue-400 mb-2';
-            }
+        fileInput.addEventListener('change', function(){
+            const f=this.files[0]; if(!f)return;
+            document.getElementById('upload-placeholder').classList.add('hidden');
+            document.getElementById('file-preview').classList.remove('hidden');
+            document.getElementById('file-name').textContent=f.name;
+            document.getElementById('file-icon').className=f.name.toLowerCase().endsWith('.pdf')?'fas fa-file-pdf text-4xl text-red-400 mb-2':'fas fa-file-image text-4xl text-blue-400 mb-2';
         });
+        const dropZone=document.getElementById('drop-zone');
+        ['dragenter','dragover'].forEach(e=>dropZone.addEventListener(e,ev=>{ev.preventDefault();dropZone.classList.add('border-blue-500')}));
+        ['dragleave','drop'].forEach(e=>dropZone.addEventListener(e,ev=>{ev.preventDefault();dropZone.classList.remove('border-blue-500')}));
+        dropZone.addEventListener('drop',ev=>{const f=ev.dataTransfer.files[0];if(f){const dt=new DataTransfer();dt.items.add(f);fileInput.files=dt.files;fileInput.dispatchEvent(new Event('change'))}});
 
-        // Drag & drop
-        const dropZone = document.getElementById('drop-zone');
-        ['dragenter','dragover'].forEach(e => dropZone.addEventListener(e, ev => { ev.preventDefault(); dropZone.classList.add('border-blue-500'); }));
-        ['dragleave','drop'].forEach(e => dropZone.addEventListener(e, ev => { ev.preventDefault(); dropZone.classList.remove('border-blue-500'); }));
-        dropZone.addEventListener('drop', ev => {
-            const file = ev.dataTransfer.files[0];
-            if (file) {
-                const dt = new DataTransfer();
-                dt.items.add(file);
-                fileInput.files = dt.files;
-                fileInput.dispatchEvent(new Event('change'));
-            }
-        });
+        // ── Classification ──
+        let currentId = '';
+        let chatHistory = [];
+        let currentContext = {ficha_tecnica:'',clasificacion:'',validacion:'',investigacion:''};
 
-        // Form submit
         document.getElementById('form-clasificar').addEventListener('submit', async function(e) {
             e.preventDefault();
-            const btn = document.getElementById('btn-clasificar');
-            const loading = document.getElementById('loading');
-            const results = document.getElementById('results');
-            const errorBox = document.getElementById('error-box');
+            const btn=document.getElementById('btn-clasificar'), loading=document.getElementById('loading'), results=document.getElementById('results'), errorBox=document.getElementById('error-box');
+            btn.disabled=true; btn.textContent='Procesando...';
+            loading.classList.remove('hidden'); results.classList.add('hidden'); errorBox.classList.add('hidden');
 
-            btn.disabled = true;
-            btn.textContent = 'Procesando...';
-            loading.classList.remove('hidden');
-            results.classList.add('hidden');
-            errorBox.classList.add('hidden');
-
-            // Animate steps (order: Investigador -> Clasificador -> Validador)
-            const s1 = document.getElementById('step-1');
-            const s2 = document.getElementById('step-2');
-            const s3 = document.getElementById('step-3');
-            s1.innerHTML = '<i class="fas fa-circle-notch fa-spin text-yellow-400"></i><span class="text-gray-300">Agente Investigador buscando resoluciones DIAN + Perplexity...</span>';
-            s2.innerHTML = '<i class="fas fa-circle text-gray-700 text-xs"></i><span class="text-gray-600">Agente Clasificador pendiente...</span>';
-            s3.innerHTML = '<i class="fas fa-circle text-gray-700 text-xs"></i><span class="text-gray-600">Agente Validador pendiente...</span>';
-
-            setTimeout(() => {
-                s1.innerHTML = '<i class="fas fa-check-circle text-green-400"></i><span class="text-gray-300">Agente Investigador completado</span>';
-                s2.innerHTML = '<i class="fas fa-circle-notch fa-spin text-blue-400"></i><span class="text-gray-300">Agente Clasificador analizando (con hallazgos del investigador)...</span>';
-            }, 25000);
-            setTimeout(() => {
-                s2.innerHTML = '<i class="fas fa-check-circle text-green-400"></i><span class="text-gray-300">Agente Clasificador completado</span>';
-                s3.innerHTML = '<i class="fas fa-circle-notch fa-spin text-purple-400"></i><span class="text-gray-300">Agente Validador verificando...</span>';
-            }, 50000);
+            const s1=document.getElementById('step-1'),s2=document.getElementById('step-2'),s3=document.getElementById('step-3');
+            s1.innerHTML='<i class="fas fa-circle-notch fa-spin text-yellow-400"></i><span class="text-gray-300">Investigador buscando resoluciones DIAN + Perplexity...</span>';
+            s2.innerHTML='<i class="fas fa-circle text-gray-700 text-xs"></i><span class="text-gray-600">Clasificador pendiente...</span>';
+            s3.innerHTML='<i class="fas fa-circle text-gray-700 text-xs"></i><span class="text-gray-600">Validador pendiente...</span>';
+            setTimeout(()=>{s1.innerHTML='<i class="fas fa-check-circle text-green-400"></i><span class="text-gray-300">Investigador completado</span>';s2.innerHTML='<i class="fas fa-circle-notch fa-spin text-blue-400"></i><span class="text-gray-300">Clasificador analizando...</span>';},25000);
+            setTimeout(()=>{s2.innerHTML='<i class="fas fa-check-circle text-green-400"></i><span class="text-gray-300">Clasificador completado</span>';s3.innerHTML='<i class="fas fa-circle-notch fa-spin text-purple-400"></i><span class="text-gray-300">Validador verificando...</span>';},50000);
 
             try {
-                const formData = new FormData(this);
-                const resp = await fetch('/clasificar', { method: 'POST', body: formData });
-                const data = await resp.json();
-                if (!resp.ok) throw new Error(data.error || 'Error desconocido');
+                const formData=new FormData(this);
+                const resp=await fetch('/clasificar',{method:'POST',body:formData});
+                const data=await resp.json();
+                if(!resp.ok) throw new Error(data.error||'Error');
 
-                // Ficha extraída
-                const inputType = document.getElementById('input_type').value;
-                const fichaBox = document.getElementById('ficha-extraida-box');
-                if (inputType !== 'texto') {
-                    document.getElementById('ficha-extraida').textContent = data.ficha_tecnica;
-                    fichaBox.classList.remove('hidden');
-                } else {
-                    fichaBox.classList.add('hidden');
-                }
+                currentId=data.id||'';
+                const inputType=document.getElementById('input_type').value;
+                const fichaBox=document.getElementById('ficha-extraida-box');
+                if(inputType!=='texto'){document.getElementById('ficha-extraida').textContent=data.ficha_tecnica;fichaBox.classList.remove('hidden')}else{fichaBox.classList.add('hidden')}
 
-                // Resultados
-                const clsEl = document.getElementById('result-clasificacion');
-                const valEl = document.getElementById('result-validacion');
-                const invEl = document.getElementById('result-investigacion');
-                clsEl.textContent = ''; valEl.textContent = ''; invEl.textContent = '';
-                clsEl.insertAdjacentHTML('afterbegin', data.clasificacion_html);
-                valEl.insertAdjacentHTML('afterbegin', data.validacion_html);
-                invEl.insertAdjacentHTML('afterbegin', data.investigacion_html);
+                ['result-clasificacion','result-validacion','result-investigacion'].forEach(id=>{document.getElementById(id).textContent=''});
+                document.getElementById('result-investigacion').insertAdjacentHTML('afterbegin',data.investigacion_html);
+                document.getElementById('result-clasificacion').insertAdjacentHTML('afterbegin',data.clasificacion_html);
+                document.getElementById('result-validacion').insertAdjacentHTML('afterbegin',data.validacion_html);
+
+                // Metrics
+                document.getElementById('m-tiempo').textContent=data.tiempo_segundos+'s';
+                document.getElementById('m-cop').textContent='$'+Number(data.costo_cop).toLocaleString('es-CO',{minimumFractionDigits:0});
+                document.getElementById('m-usd').textContent='$'+Number(data.costo_usd).toFixed(4);
+                document.getElementById('m-tokens').textContent=Number(data.tokens).toLocaleString();
 
                 // Fuentes
-                const fuentesBox = document.getElementById('fuentes-box');
-                const fuentesList = document.getElementById('fuentes-list');
-                fuentesList.textContent = '';
-                if (data.fuentes && data.fuentes.length > 0) {
-                    fuentesBox.classList.remove('hidden');
-                    data.fuentes.forEach(f => {
-                        const card = document.createElement('div');
-                        card.className = 'source-card';
+                const fBox=document.getElementById('fuentes-box'),fList=document.getElementById('fuentes-list');fList.textContent='';
+                if(data.fuentes&&data.fuentes.length>0){fBox.classList.remove('hidden');data.fuentes.forEach(f=>{const c=document.createElement('div');c.className='source-card';const a=document.createElement('a');a.href=f.url;a.target='_blank';a.rel='noopener noreferrer';a.className='text-sm text-blue-400 hover:text-blue-300 font-medium';a.textContent=f.title;c.appendChild(a);if(f.snippet){const s=document.createElement('p');s.className='text-xs text-gray-500 mt-1';s.textContent=f.snippet;c.appendChild(s)}fList.appendChild(c)})}else{fBox.classList.add('hidden')}
 
-                        const title = document.createElement('a');
-                        title.href = f.url;
-                        title.target = '_blank';
-                        title.rel = 'noopener noreferrer';
-                        title.className = 'text-sm text-blue-400 hover:text-blue-300 font-medium';
-                        title.textContent = f.title;
-                        card.appendChild(title);
-
-                        if (f.snippet) {
-                            const snip = document.createElement('p');
-                            snip.className = 'text-xs text-gray-500 mt-1';
-                            snip.textContent = f.snippet;
-                            card.appendChild(snip);
-                        }
-                        fuentesList.appendChild(card);
-                    });
-                } else {
-                    fuentesBox.classList.add('hidden');
-                }
-
-                document.getElementById('tokens-count').textContent = (data.tokens || 0).toLocaleString();
-
-                // Reset chat
-                document.getElementById('chat-messages').textContent = '';
-                chatHistory = [];
-                currentContext = {
-                    ficha_tecnica: data.ficha_tecnica,
-                    clasificacion: data.clasificacion_raw || '',
-                    validacion: data.validacion_raw || '',
-                    investigacion: data.investigacion_raw || '',
-                };
-
+                // Reset decision & chat
+                document.getElementById('estado-feedback').classList.add('hidden');
+                document.getElementById('notas-decision').value='';
+                document.getElementById('chat-messages').textContent='';
+                chatHistory=[];
+                currentContext={ficha_tecnica:data.ficha_tecnica,clasificacion:data.clasificacion_raw||'',validacion:data.validacion_raw||'',investigacion:data.investigacion_raw||''};
                 results.classList.remove('hidden');
-            } catch (err) {
-                document.getElementById('error-message').textContent = err.message;
-                errorBox.classList.remove('hidden');
-            } finally {
-                loading.classList.add('hidden');
-                btn.disabled = false;
-                btn.innerHTML = '<i class="fas fa-search"></i> Clasificar Producto';
-            }
+            } catch(err){document.getElementById('error-message').textContent=err.message;errorBox.classList.remove('hidden')} finally{loading.classList.add('hidden');btn.disabled=false;btn.innerHTML='<i class="fas fa-search"></i> Clasificar Producto'}
         });
+
+        // ── Estado (aprobar/rechazar/investigar) ──
+        async function setEstado(estado) {
+            if(!currentId){alert('No hay clasificación activa.');return}
+            const notas=document.getElementById('notas-decision').value.trim();
+            const fb=document.getElementById('estado-feedback');
+            try {
+                const resp=await fetch('/estado',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id:currentId,estado,notas})});
+                const data=await resp.json();
+                if(!resp.ok) throw new Error(data.error||'Error');
+                const colors={aprobada:'text-green-400',rechazada:'text-red-400',investigar:'text-purple-400'};
+                const labels={aprobada:'APROBADA - Agregada a base de conocimiento',rechazada:'RECHAZADA',investigar:'MARCADA PARA INVESTIGACIÓN PROFUNDA'};
+                fb.className='mt-3 text-sm font-medium '+(colors[estado]||'');
+                fb.textContent='Clasificación '+labels[estado];
+                fb.classList.remove('hidden');
+            } catch(err){fb.className='mt-3 text-sm text-red-400';fb.textContent='Error: '+err.message;fb.classList.remove('hidden')}
+        }
 
         // ── Chat ──
-        let chatHistory = [];
-        let currentContext = { ficha_tecnica:'', clasificacion:'', validacion:'', investigacion:'' };
+        function appendChatMessage(role,html){const c=document.getElementById('chat-messages'),b=document.createElement('div');b.className='chat-bubble '+(role==='user'?'chat-user':'chat-assistant');const l=document.createElement('div');l.className='text-xs font-semibold mb-1 '+(role==='user'?'text-blue-400':'text-green-400');l.textContent=role==='user'?'T\u00fa':'ACA';b.appendChild(l);const d=document.createElement('div');d.className='markdown-body text-sm text-gray-300';if(role==='user'){d.textContent=html}else{d.insertAdjacentHTML('afterbegin',html)}b.appendChild(d);c.appendChild(b);c.scrollTop=c.scrollHeight}
 
-        function appendChatMessage(role, contentHtml) {
-            const container = document.getElementById('chat-messages');
-            const bubble = document.createElement('div');
-            const isUser = role === 'user';
-            bubble.className = 'chat-bubble ' + (isUser ? 'chat-user' : 'chat-assistant');
-
-            const label = document.createElement('div');
-            label.className = 'text-xs font-semibold mb-1 ' + (isUser ? 'text-blue-400' : 'text-green-400');
-            label.textContent = isUser ? 'T\u00fa' : 'ACA';
-            bubble.appendChild(label);
-
-            const body = document.createElement('div');
-            body.className = 'markdown-body text-sm text-gray-300';
-            if (isUser) { body.textContent = contentHtml; }
-            else { body.insertAdjacentHTML('afterbegin', contentHtml); }
-            bubble.appendChild(body);
-
-            container.appendChild(bubble);
-            container.scrollTop = container.scrollHeight;
+        async function sendChatMessage(){
+            const input=document.getElementById('chat-input'),btn=document.getElementById('btn-chat'),cl=document.getElementById('chat-loading'),msg=input.value.trim();
+            if(!msg)return;appendChatMessage('user',msg);input.value='';btn.disabled=true;cl.classList.remove('hidden');
+            try{const r=await fetch('/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({message:msg,ficha_tecnica:currentContext.ficha_tecnica,clasificacion:currentContext.clasificacion,validacion:currentContext.validacion,investigacion:currentContext.investigacion,history:chatHistory})});const d=await r.json();if(!r.ok)throw new Error(d.error);appendChatMessage('assistant',d.reply_html);chatHistory.push({role:'user',content:msg},{role:'assistant',content:d.reply});if(chatHistory.length>20)chatHistory=chatHistory.slice(-20)}catch(e){appendChatMessage('assistant','<p class="text-red-400">Error: '+e.message+'</p>')}finally{btn.disabled=false;cl.classList.add('hidden')}
         }
+        document.getElementById('btn-chat').addEventListener('click',sendChatMessage);
+        document.getElementById('chat-input').addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendChatMessage()}});
 
-        async function sendChatMessage() {
-            const input = document.getElementById('chat-input');
-            const btn = document.getElementById('btn-chat');
-            const chatLoading = document.getElementById('chat-loading');
-            const message = input.value.trim();
-            if (!message) return;
+        // ── Historial ──
+        async function loadHistorial(estado) {
+            const list=document.getElementById('historial-list'),empty=document.getElementById('historial-empty');
+            list.textContent='';empty.classList.add('hidden');
+            let url='/historial';if(estado)url+='?estado='+estado;
+            try{const r=await fetch(url);const d=await r.json();
+                if(!d.registros||d.registros.length===0){empty.classList.remove('hidden');return}
+                d.registros.forEach(reg=>{
+                    const row=document.createElement('div');row.className='hist-row flex items-center justify-between px-3';
+                    const left=document.createElement('div');left.className='flex-1 min-w-0';
+                    const title=document.createElement('p');title.className='text-sm text-gray-300 truncate';title.textContent=(reg.subpartida||'?')+' - '+(reg.ficha_tecnica||'').substring(0,80);
+                    const meta=document.createElement('p');meta.className='text-xs text-gray-500';
+                    const fecha=new Date(reg.created_at).toLocaleDateString('es-CO',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'});
+                    meta.textContent=fecha+' | $'+Number(reg.costo_cop||0).toLocaleString('es-CO')+' COP | '+Number(reg.tiempo_segundos||0).toFixed(0)+'s';
+                    left.appendChild(title);left.appendChild(meta);
 
-            appendChatMessage('user', message);
-            input.value = '';
-            btn.disabled = true;
-            chatLoading.classList.remove('hidden');
+                    const badge=document.createElement('span');badge.className='status-badge status-'+(reg.estado||'pendiente');badge.textContent=reg.estado||'pendiente';
 
-            try {
-                const resp = await fetch('/chat', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        message,
-                        ficha_tecnica: currentContext.ficha_tecnica,
-                        clasificacion: currentContext.clasificacion,
-                        validacion: currentContext.validacion,
-                        investigacion: currentContext.investigacion,
-                        history: chatHistory,
-                    }),
+                    row.appendChild(left);row.appendChild(badge);
+                    list.appendChild(row);
                 });
-                const data = await resp.json();
-                if (!resp.ok) throw new Error(data.error || 'Error');
-
-                appendChatMessage('assistant', data.reply_html);
-                chatHistory.push({ role: 'user', content: message });
-                chatHistory.push({ role: 'assistant', content: data.reply });
-                if (chatHistory.length > 20) chatHistory = chatHistory.slice(-20);
-            } catch (err) {
-                appendChatMessage('assistant', '<p class="text-red-400">Error: ' +
-                    err.message.replace(/</g,'&lt;').replace(/>/g,'&gt;') + '</p>');
-            } finally {
-                btn.disabled = false;
-                chatLoading.classList.add('hidden');
-            }
+            }catch(e){empty.textContent='Error cargando historial';empty.classList.remove('hidden')}
         }
 
-        document.getElementById('btn-chat').addEventListener('click', sendChatMessage);
-        document.getElementById('chat-input').addEventListener('keydown', e => {
-            if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendChatMessage(); }
+        // ── Importar ──
+        document.getElementById('form-importar').addEventListener('submit',async function(e){
+            e.preventDefault();const fb=document.getElementById('import-result');fb.classList.add('hidden');
+            const formData=new FormData(this);
+            try{const r=await fetch('/importar',{method:'POST',body:formData});const d=await r.json();
+                if(!r.ok)throw new Error(d.error);
+                fb.className='mt-4 text-sm text-green-400';fb.textContent='Importados: '+d.importados+' de '+d.total_enviados+' registros';fb.classList.remove('hidden');loadKBStats();
+            }catch(e){fb.className='mt-4 text-sm text-red-400';fb.textContent='Error: '+e.message;fb.classList.remove('hidden')}
         });
+
+        async function loadKBStats(){try{const r=await fetch('/conocimiento/stats');const d=await r.json();document.getElementById('kb-count').textContent=d.total_registros||0}catch(e){}}
     </script>
 </body>
 </html>

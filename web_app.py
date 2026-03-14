@@ -1,16 +1,19 @@
 #!/usr/bin/env python3
 """ACA Web - Agente de Clasificación Arancelaria (versión web).
 
-Interfaz web con 3 agentes: Clasificador, Validador e Investigador.
-Soporta texto, URL, imagen y PDF como entrada.
+3 agentes + base de conocimiento Supabase + sistema de aprobación.
 """
 from __future__ import annotations
 
 import base64
+import csv
+import io
 import ipaddress
+import json
 import os
 import re
 import socket
+import time
 import traceback
 from pathlib import Path
 from urllib.parse import urlparse
@@ -35,6 +38,16 @@ from config import (
     UPLOAD_FOLDER,
     VISION_MODEL,
 )
+from database import (
+    actualizar_estado,
+    buscar_conocimiento,
+    calcular_costo_total,
+    guardar_clasificacion,
+    importar_conocimiento,
+    listar_clasificaciones,
+    obtener_clasificacion,
+    stats_conocimiento,
+)
 from pdf_loader import find_relevant_chapters, load_pdf
 
 app = Flask(__name__)
@@ -47,8 +60,7 @@ print(f"Arancel cargado: {len(ARANCEL_TEXT):,} caracteres")
 ALLOWED_TAGS = [
     "h1", "h2", "h3", "h4", "h5", "h6", "p", "br", "hr",
     "strong", "em", "code", "pre", "blockquote",
-    "ul", "ol", "li",
-    "table", "thead", "tbody", "tr", "th", "td",
+    "ul", "ol", "li", "table", "thead", "tbody", "tr", "th", "td",
     "a", "span", "div",
 ]
 ALLOWED_ATTRS = {"a": ["href", "target"], "th": ["align"], "td": ["align"]}
@@ -94,20 +106,11 @@ def extract_text_from_image(image_path: str) -> str:
     mime_map = {"jpg": "jpeg", "jpeg": "jpeg", "png": "png", "webp": "webp", "gif": "gif", "bmp": "bmp"}
     mime_type = f"image/{mime_map.get(ext, 'png')}"
     response = client.chat.completions.create(
-        model=VISION_MODEL,
-        max_tokens=2048,
-        messages=[{
-            "role": "user",
-            "content": [
-                {"type": "text", "text": (
-                    "Extrae toda la información de esta ficha técnica de producto. "
-                    "Incluye: nombre, descripción, materiales, composición, dimensiones, "
-                    "peso, uso, origen, y cualquier otro dato relevante. "
-                    "Responde solo con la información extraída."
-                )},
-                {"type": "image_url", "image_url": {"url": f"data:{mime_type};base64,{image_data}"}},
-            ],
-        }],
+        model=VISION_MODEL, max_tokens=2048,
+        messages=[{"role": "user", "content": [
+            {"type": "text", "text": "Extrae toda la información de esta ficha técnica de producto. Incluye: nombre, descripción, materiales, composición, dimensiones, peso, uso, origen. Responde solo con la información extraída."},
+            {"type": "image_url", "image_url": {"url": f"data:{mime_type};base64,{image_data}"}},
+        ]}],
     )
     return response.choices[0].message.content
 
@@ -158,6 +161,23 @@ def extract_text_from_url(user_url: str) -> str:
     return html[:5000]
 
 
+def _build_knowledge_context(ficha_tecnica: str) -> str:
+    """Busca clasificaciones previas relevantes y las formatea como contexto."""
+    precedentes = buscar_conocimiento(ficha_tecnica, limit=5)
+    if not precedentes:
+        return ""
+    lines = ["## Precedentes de clasificación en la base de conocimiento:\n"]
+    for i, p in enumerate(precedentes, 1):
+        lines.append(f"**{i}. Producto:** {p['producto'][:200]}")
+        lines.append(f"   **Subpartida:** {p['subpartida']} | Gravamen: {p.get('gravamen_pct', '?')}%")
+        if p.get("justificacion"):
+            lines.append(f"   **Justificación:** {p['justificacion'][:300]}")
+        lines.append(f"   **Fuente:** {p.get('fuente', 'N/A')}\n")
+    return "\n".join(lines)
+
+
+# ── Rutas ──
+
 @app.route("/")
 def index():
     return render_template("index.html")
@@ -166,34 +186,32 @@ def index():
 @app.route("/clasificar", methods=["POST"])
 def clasificar():
     try:
+        start_time = time.time()
         input_type = request.form.get("input_type", "texto")
+        fuente_nombre = ""
         ficha_tecnica = ""
 
         if input_type == "texto":
             ficha_tecnica = request.form.get("ficha_texto", "").strip()
             if not ficha_tecnica:
                 return jsonify({"error": "La ficha técnica está vacía."}), 400
-
         elif input_type == "url":
             url = request.form.get("ficha_url", "").strip()
-            if not url:
-                return jsonify({"error": "La URL está vacía."}), 400
-            if not url.startswith(("http://", "https://")):
+            if not url or not url.startswith(("http://", "https://")):
                 return jsonify({"error": "URL inválida."}), 400
+            fuente_nombre = url
             ficha_tecnica = extract_text_from_url(url)
-
         elif input_type == "archivo":
             if "ficha_archivo" not in request.files:
                 return jsonify({"error": "No se seleccionó ningún archivo."}), 400
             file = request.files["ficha_archivo"]
-            if file.filename == "":
-                return jsonify({"error": "No se seleccionó ningún archivo."}), 400
-            if not _allowed_file(file.filename):
+            if file.filename == "" or not _allowed_file(file.filename):
                 return jsonify({"error": f"Formato no permitido. Use: {ALLOWED_FILE_EXTENSIONS}"}), 400
             os.makedirs(UPLOAD_FOLDER, exist_ok=True)
             safe_name = re.sub(r"[^\w.\-]", "_", file.filename)
             filepath = os.path.join(UPLOAD_FOLDER, safe_name)
             file.save(filepath)
+            fuente_nombre = file.filename
             if _is_pdf(file.filename):
                 ficha_tecnica = extract_text_from_pdf(filepath)
             elif _is_image(file.filename):
@@ -206,42 +224,138 @@ def clasificar():
         if not ficha_tecnica.strip():
             return jsonify({"error": "No se pudo extraer texto del archivo."}), 400
 
+        # Buscar precedentes en base de conocimiento
+        knowledge_ctx = _build_knowledge_context(ficha_tecnica)
         contexto = find_relevant_chapters(ficha_tecnica, ARANCEL_TEXT)
 
-        # Paso 1: Investigador (busca resoluciones DIAN + Perplexity)
+        # Paso 1: Investigador
         res_inv = investigar_producto(ficha_tecnica)
         investigacion = res_inv["investigacion_raw"]
 
-        # Paso 2: Clasificador (usa la investigación como insumo)
-        res_cls = clasificar_producto(ficha_tecnica, contexto, investigacion)
+        # Paso 2: Clasificador (con conocimiento previo + investigación)
+        clasificador_contexto = contexto
+        if knowledge_ctx:
+            clasificador_contexto = knowledge_ctx + "\n\n" + contexto
+        res_cls = clasificar_producto(ficha_tecnica, clasificador_contexto, investigacion)
         clasificacion = res_cls["clasificacion_raw"]
 
-        # Paso 3: Validador (verifica la clasificación)
+        # Paso 3: Validador
         res_val = validar_clasificacion(ficha_tecnica, clasificacion, contexto)
         validacion = res_val["validacion_raw"]
 
-        tokens_total = (
-            res_cls["tokens_input"] + res_cls["tokens_output"]
-            + res_val["tokens_input"] + res_val["tokens_output"]
-            + res_inv["tokens_input"] + res_inv["tokens_output"]
+        elapsed = round(time.time() - start_time, 2)
+
+        # Calcular costos
+        costos = calcular_costo_total([res_inv, res_cls, res_val])
+
+        # Guardar en Supabase
+        registro = guardar_clasificacion(
+            ficha_tecnica=ficha_tecnica,
+            fuente_tipo=input_type,
+            fuente_nombre=fuente_nombre,
+            investigacion=investigacion,
+            clasificacion=clasificacion,
+            validacion=validacion,
+            costos=costos,
+            tiempo_segundos=elapsed,
+            fuentes=res_inv.get("fuentes", []),
         )
 
         return jsonify({
+            "id": registro.get("id", ""),
             "ficha_tecnica": str(html_escape(ficha_tecnica)),
+            "investigacion_html": _render_markdown_safe(investigacion),
             "clasificacion_html": _render_markdown_safe(clasificacion),
             "validacion_html": _render_markdown_safe(validacion),
-            "investigacion_html": _render_markdown_safe(investigacion),
-            "fuentes": res_inv.get("fuentes", []),
             "clasificacion_raw": clasificacion,
             "validacion_raw": validacion,
             "investigacion_raw": investigacion,
-            "tokens": tokens_total,
+            "fuentes": res_inv.get("fuentes", []),
+            "tokens": costos["tokens_total"],
+            "costo_usd": costos["costo_usd"],
+            "costo_cop": costos["costo_cop"],
+            "tiempo_segundos": elapsed,
+            "precedentes_usados": len(buscar_conocimiento(ficha_tecnica, limit=5)),
         })
 
     except Exception as e:
         traceback.print_exc()
         return jsonify({"error": str(e)}), 500
 
+
+@app.route("/estado", methods=["POST"])
+def cambiar_estado():
+    """Aprobar, rechazar o marcar para investigación profunda."""
+    try:
+        data = request.get_json()
+        clasificacion_id = data.get("id", "").strip()
+        estado = data.get("estado", "").strip()
+        notas = data.get("notas", "").strip()
+
+        if not clasificacion_id or estado not in ("aprobada", "rechazada", "investigar"):
+            return jsonify({"error": "ID o estado inválido."}), 400
+
+        result = actualizar_estado(clasificacion_id, estado, notas)
+        return jsonify({"ok": True, "registro": result})
+
+    except Exception as e:
+        traceback.print_exc()
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/historial")
+def historial():
+    """Lista clasificaciones con filtro opcional por estado."""
+    estado = request.args.get("estado")
+    registros = listar_clasificaciones(estado=estado, limit=100)
+    return jsonify({"registros": registros})
+
+
+@app.route("/clasificacion/<clasificacion_id>")
+def ver_clasificacion(clasificacion_id):
+    """Obtiene una clasificación completa."""
+    registro = obtener_clasificacion(clasificacion_id)
+    if not registro:
+        return jsonify({"error": "No encontrada."}), 404
+    return jsonify(registro)
+
+
+@app.route("/importar", methods=["POST"])
+def importar():
+    """Importa base de conocimiento desde CSV o JSON."""
+    try:
+        if "archivo" not in request.files:
+            return jsonify({"error": "No se seleccionó archivo."}), 400
+
+        file = request.files["archivo"]
+        filename = file.filename.lower()
+        content = file.read().decode("utf-8")
+
+        registros = []
+        if filename.endswith(".json"):
+            registros = json.loads(content)
+            if isinstance(registros, dict):
+                registros = registros.get("data", registros.get("registros", [registros]))
+        elif filename.endswith(".csv"):
+            reader = csv.DictReader(io.StringIO(content))
+            registros = list(reader)
+        else:
+            return jsonify({"error": "Use archivo .json o .csv"}), 400
+
+        inserted = importar_conocimiento(registros)
+        return jsonify({"ok": True, "importados": inserted, "total_enviados": len(registros)})
+
+    except Exception as e:
+        traceback.print_exc()
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/conocimiento/stats")
+def conocimiento_stats():
+    return jsonify(stats_conocimiento())
+
+
+# ── Chat ──
 
 CHAT_SYSTEM_PROMPT = """\
 Eres un experto en clasificación arancelaria de la DIAN (Colombia), especializado en el \
@@ -259,23 +373,18 @@ _URL_PATTERN = re.compile(r'https?://[^\s<>"\']+')
 
 
 def _extract_urls_content(text: str) -> str:
-    """Detecta URLs en el texto, descarga su contenido y retorna el contexto extraído."""
     urls = _URL_PATTERN.findall(text)
     if not urls:
         return ""
-
-    extracted_parts: list[str] = []
-    for url in urls[:3]:  # Máximo 3 URLs por mensaje
+    parts: list[str] = []
+    for url in urls[:3]:
         try:
             content = extract_text_from_url(url)
             if content:
-                extracted_parts.append(
-                    f"\n---\n**Contenido extraído de:** {url}\n\n{content[:5000]}\n---"
-                )
+                parts.append(f"\n---\n**Contenido de:** {url}\n\n{content[:5000]}\n---")
         except Exception as e:
-            extracted_parts.append(f"\n[No se pudo acceder a {url}: {e}]")
-
-    return "\n".join(extracted_parts)
+            parts.append(f"\n[No se pudo acceder a {url}: {e}]")
+    return "\n".join(parts)
 
 
 @app.route("/chat", methods=["POST"])
@@ -288,24 +397,20 @@ def chat():
         if not user_message:
             return jsonify({"error": "El mensaje está vacío."}), 400
 
-        # Detectar y descargar URLs en el mensaje
         url_content = _extract_urls_content(user_message)
         enriched_message = user_message
         if url_content:
-            enriched_message += (
-                "\n\n[El sistema descargó el contenido de los enlaces proporcionados:]\n"
-                + url_content
-            )
+            enriched_message += "\n\n[Contenido descargado:]\n" + url_content
 
         messages = [{"role": "system", "content": CHAT_SYSTEM_PROMPT}]
         context_msg = (
             f"## Contexto:\n\n### Ficha técnica:\n{data.get('ficha_tecnica', '')}\n\n"
             f"### Clasificación:\n{data.get('clasificacion', '')}\n\n"
             f"### Validación:\n{data.get('validacion', '')}\n\n"
-            f"### Investigación de fuentes DIAN:\n{data.get('investigacion', '')}"
+            f"### Investigación:\n{data.get('investigacion', '')}"
         )
         messages.append({"role": "user", "content": context_msg})
-        messages.append({"role": "assistant", "content": "Entendido. Tengo el contexto completo. ¿En qué puedo ayudarte?"})
+        messages.append({"role": "assistant", "content": "Entendido. ¿En qué puedo ayudarte?"})
 
         for entry in data.get("history", []):
             role = entry.get("role", "user")

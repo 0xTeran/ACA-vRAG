@@ -19,3 +19,5 @@ ALLOWED_IMAGE_EXTENSIONS = {"png", "jpg", "jpeg", "webp", "gif", "bmp"}
 ALLOWED_FILE_EXTENSIONS = {"png", "jpg", "jpeg", "webp", "gif", "bmp", "pdf"}
 PERPLEXITY_MODEL = "perplexity/sonar-pro"
 DIAN_RESOLUCIONES_URL = "https://www.dian.gov.co/normatividad/Paginas/ResoClasifiAracelaria.aspx"
+SUPABASE_URL = os.environ.get("SUPABASE_URL", "https://mwnvyfncdugaprergebm.supabase.co")
+SUPABASE_KEY = os.environ.get("SUPABASE_KEY", "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im13bnZ5Zm5jZHVnYXByZXJnZWJtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM1MjU3MTEsImV4cCI6MjA4OTEwMTcxMX0.doyBxAamz7eV4JFwHTvxXmF1vvL1B9Qv3trFb9cXcPU")
