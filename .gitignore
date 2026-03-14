@@ -1,0 +1,7 @@
+__pycache__/
+*.pyc
+.env
+uploads/
+resultado_*.json
+*.log
+.DS_Store
