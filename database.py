@@ -404,6 +404,40 @@ def extraer_caracteristicas(ficha_tecnica: str) -> list[dict]:
         return []
 
 
+def buscar_patrones_interpretativos(ficha_tecnica: str, top_k: int = 5) -> str:
+    """Busca patrones interpretativos de la DIAN relevantes al desafío de clasificación.
+
+    No busca por producto — busca por tipo de DESAFÍO INTERPRETATIVO:
+    composición vs forma, capítulos competidores, producto compuesto, etc.
+    """
+    embedding = _embed_text(ficha_tecnica)
+    client = get_client()
+
+    result = client.rpc("buscar_patrones_similares", {
+        "query_embedding": embedding,
+        "match_count": top_k,
+        "match_threshold": 0.30,
+    }).execute()
+
+    patrones = result.data or []
+    if not patrones:
+        return ""
+
+    parts = [
+        "## PATRONES INTERPRETATIVOS DE LA DIAN (extraídos de resoluciones reales):",
+        "Usa estos patrones como GUÍA de cómo la DIAN razona en casos similares.\n",
+    ]
+
+    for i, p in enumerate(patrones, 1):
+        sim = round(p.get("similarity", 0) * 100, 1)
+        parts.append(f"**[{i}] {p.get('tipo_desafio', '?')}** (sim: {sim}%) — Res. {p.get('resolucion_numero', '?')}")
+        parts.append(f"  Patrón: {p.get('patron', '')}")
+        parts.append(f"  Ejemplo: {p.get('ejemplo', '')}")
+        parts.append("")
+
+    return "\n".join(parts)
+
+
 def buscar_resoluciones_relevantes(ficha_tecnica: str, top_k: int = 3) -> str:
     """Busca resoluciones DIAN similares y retorna su contenido completo.
 
