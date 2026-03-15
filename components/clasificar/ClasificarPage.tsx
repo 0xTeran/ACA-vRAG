@@ -16,6 +16,7 @@ type Message =
   | { type: 'loading'; steps: Step[] }
   | { type: 'result'; result: ClasificarResult }
   | { type: 'chat-reply'; html: string }
+  | { type: 'thinking' }
   | { type: 'error'; text: string }
 
 const extractUrl = (t: string): string | null => {
@@ -151,7 +152,7 @@ export function ClasificarPage({ sessionId }: Props) {
 
   // ── Send chat message (follow-up after classification) ──
   const sendChatMessage = useCallback(async (msg: string) => {
-    setMessages((prev) => [...prev, { type: 'user', text: msg }])
+    setMessages((prev) => [...prev, { type: 'user', text: msg }, { type: 'thinking' }])
     setLoading(true)
 
     try {
@@ -170,6 +171,9 @@ export function ClasificarPage({ sessionId }: Props) {
       })
       const data = await r.json()
 
+      // Remove thinking indicator
+      setMessages((prev) => prev.filter((m) => m.type !== 'thinking'))
+
       if (!r.ok) {
         setMessages((prev) => [...prev, { type: 'error', text: data.error ?? 'Error' }])
         return
@@ -181,6 +185,7 @@ export function ClasificarPage({ sessionId }: Props) {
         return updated.length > 20 ? updated.slice(-20) : updated
       })
     } catch {
+      setMessages((prev) => prev.filter((m) => m.type !== 'thinking'))
       setMessages((prev) => [...prev, { type: 'error', text: 'Error de conexión.' }])
     } finally {
       setLoading(false)
@@ -274,9 +279,15 @@ export function ClasificarPage({ sessionId }: Props) {
       setChatHistory([])
 
       // Update URL to /c/<id>
+      console.log('[ACA] Session ID received:', newId)
       if (newId) {
         const subpartida = d.clasificacion_raw?.match(/\d{4}\.\d{2}\.\d{2}\.\d{2}/)?.[0] ?? ''
-        window.history.pushState({ sessionId: newId }, '', `/c/${newId}`)
+        try {
+          window.history.pushState({ sessionId: newId }, '', `/c/${newId}`)
+          console.log('[ACA] URL updated to /c/' + newId)
+        } catch (e) {
+          console.error('[ACA] pushState failed:', e)
+        }
         document.title = `ACA — ${subpartida || 'Clasificación'}`
       }
 
@@ -360,6 +371,33 @@ export function ClasificarPage({ sessionId }: Props) {
               if (msg.type === 'result') return (
                 <div key={i} style={{ marginBottom: 16 }}>
                   <ResultsView result={msg.result} />
+                </div>
+              )
+
+              if (msg.type === 'thinking') return (
+                <div key={i} style={{ marginBottom: 16 }}>
+                  <div style={{
+                    background: 'var(--card)', border: '1px solid var(--border-2)',
+                    borderRadius: '16px 16px 16px 4px', padding: '14px 18px',
+                    display: 'flex', alignItems: 'center', gap: 6,
+                  }}>
+                    <style>{`
+                      @keyframes dotPulse {
+                        0%, 60%, 100% { opacity: .25; transform: scale(.8) }
+                        30% { opacity: 1; transform: scale(1) }
+                      }
+                      .thinking-dot {
+                        width: 7px; height: 7px; border-radius: 50%;
+                        background: var(--text-3);
+                        animation: dotPulse 1.4s ease-in-out infinite;
+                      }
+                      .thinking-dot:nth-child(2) { animation-delay: .15s }
+                      .thinking-dot:nth-child(3) { animation-delay: .3s }
+                    `}</style>
+                    <div className="thinking-dot" />
+                    <div className="thinking-dot" />
+                    <div className="thinking-dot" />
+                  </div>
                 </div>
               )
 
