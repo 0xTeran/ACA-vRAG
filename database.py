@@ -484,6 +484,22 @@ def obtener_contexto_arancel_estructurado(ficha_tecnica: str, subpartidas_invest
 # ── Lecciones aprendidas ──
 
 
+def _generate_embedding(text: str) -> list[float] | None:
+    """Genera embedding para un texto. Retorna None si falla."""
+    import os as _os
+    from openai import OpenAI as _OpenAI
+
+    api_key = _os.environ.get("OPENAI_API_KEY") or _os.environ.get("OPENROUTER_API_KEY", "")
+    base_url = None if _os.environ.get("OPENAI_API_KEY") else "https://openrouter.ai/api/v1"
+
+    try:
+        client = _OpenAI(api_key=api_key, base_url=base_url) if base_url else _OpenAI(api_key=api_key)
+        response = client.embeddings.create(model="text-embedding-3-small", input=text[:4000])
+        return response.data[0].embedding
+    except Exception:
+        return None
+
+
 def guardar_leccion(
     regla: str,
     keywords: str,
@@ -493,8 +509,13 @@ def guardar_leccion(
     fuente: str = "manual",
     clasificacion_id: str = "",
 ) -> dict:
-    """Guarda una lección aprendida."""
+    """Guarda una lección con embedding para búsqueda semántica."""
     client = get_client()
+
+    # Texto para embedding: regla + producto + subpartida
+    embed_text = f"{regla} {producto[:200]} {subpartida}"
+    embedding = _generate_embedding(embed_text)
+
     data = {
         "regla": regla,
         "keywords": keywords,
@@ -505,44 +526,48 @@ def guardar_leccion(
     }
     if clasificacion_id:
         data["clasificacion_id"] = clasificacion_id
+    if embedding:
+        data["embedding"] = embedding
+
     result = client.table("lecciones").insert(data).execute()
     return result.data[0] if result.data else data
 
 
 def buscar_lecciones(ficha_tecnica: str, agente: str = "", limit: int = 8) -> list[dict]:
-    """Busca lecciones relevantes por keywords + lecciones transversales (sin producto)."""
+    """Busca lecciones relevantes usando búsqueda semántica + transversales."""
     client = get_client()
     results: list[dict] = []
     seen: set[str] = set()
 
-    # 1. Lecciones transversales (protocolos, sin producto específico)
-    try:
-        q = client.table("lecciones").select(
-            "regla, subpartida, agente, producto, fuente"
-        ).eq("producto", "").limit(limit)
-        if agente:
-            q = q.eq("agente", agente)
-        transversales = q.execute()
-        for l in (transversales.data or []):
-            key = l["regla"][:50]
-            if key not in seen:
-                seen.add(key)
-                results.append(l)
-    except Exception:
-        pass
+    # 1. Búsqueda semántica con embedding
+    embedding = _generate_embedding(ficha_tecnica)
+    if embedding:
+        try:
+            semantic = client.rpc("buscar_lecciones_similares", {
+                "query_embedding": embedding,
+                "agente_filter": agente,
+                "match_count": limit,
+                "match_threshold": 0.30,
+            }).execute()
 
-    # 2. Lecciones específicas por keywords del producto
-    words = set(re.findall(r'\b[a-záéíóúñ]{4,}\b', ficha_tecnica.lower()))
-    if words:
-        search_query = " | ".join(sorted(words)[:10])
+            for l in (semantic.data or []):
+                key = l["regla"][:50]
+                if key not in seen:
+                    seen.add(key)
+                    results.append(l)
+        except Exception:
+            pass
+
+    # 2. Lecciones transversales (protocolos, sin producto) como fallback
+    if len(results) < limit:
         try:
             q = client.table("lecciones").select(
                 "regla, subpartida, agente, producto, fuente"
-            ).text_search("keywords", search_query, config="spanish").limit(limit)
+            ).eq("producto", "").limit(limit - len(results))
             if agente:
                 q = q.eq("agente", agente)
-            especificas = q.execute()
-            for l in (especificas.data or []):
+            transversales = q.execute()
+            for l in (transversales.data or []):
                 key = l["regla"][:50]
                 if key not in seen:
                     seen.add(key)
