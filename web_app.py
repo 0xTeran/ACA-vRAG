@@ -185,7 +185,19 @@ def _fetch_url_safe(user_url: str) -> http_requests.Response:
     safe_url += parsed.path
     if parsed.query:
         safe_url += f"?{parsed.query}"
-    return http_requests.get(safe_url, headers={"User-Agent": "ACA-Bot/1.0"}, timeout=30, allow_redirects=True)
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
+        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,application/pdf,*/*;q=0.8",
+        "Accept-Language": "es-CO,es;q=0.9,en;q=0.8",
+    }
+    for attempt in range(3):
+        try:
+            return http_requests.get(safe_url, headers=headers, timeout=30, allow_redirects=True)
+        except (http_requests.exceptions.ConnectionError, http_requests.exceptions.Timeout) as e:
+            if attempt == 2:
+                raise
+            import time as _time
+            _time.sleep(2 * (attempt + 1))
 
 
 def extract_text_from_url(user_url: str) -> str:
