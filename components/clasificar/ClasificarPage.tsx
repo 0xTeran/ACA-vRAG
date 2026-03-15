@@ -7,7 +7,7 @@ import { LoadingCard } from './LoadingCard'
 import { ResultsView } from './ResultsView'
 import { useAuthModal } from '@/components/auth/AuthModal'
 import { useAppStore } from '@/store/appStore'
-import { ClasificarResult } from '@/types'
+import { ClasificarResult, ChatMessage } from '@/types'
 
 type Step = { label: string; status: 'idle' | 'running' | 'done' }
 
@@ -15,6 +15,7 @@ type Message =
   | { type: 'user'; text: string; fileName?: string }
   | { type: 'loading'; steps: Step[] }
   | { type: 'result'; result: ClasificarResult }
+  | { type: 'chat-reply'; html: string }
   | { type: 'error'; text: string }
 
 const extractUrl = (t: string): string | null => {
@@ -22,29 +23,103 @@ const extractUrl = (t: string): string | null => {
   return m ? m[0] : null
 }
 
-const INITIAL_STEPS: Step[] = [
-  { label: 'Investigador — pendiente', status: 'idle' },
-  { label: 'Clasificador — pendiente', status: 'idle' },
-  { label: 'Validador — pendiente', status: 'idle' },
-]
+interface Props {
+  sessionId?: string
+}
 
-export function ClasificarPage() {
+export function ClasificarPage({ sessionId }: Props) {
   const [messages, setMessages] = useState<Message[]>([])
   const [text, setText] = useState('')
   const [file, setFile] = useState<File | null>(null)
   const [loading, setLoading] = useState(false)
+  const [currentSessionId, setCurrentSessionId] = useState(sessionId ?? '')
+  const [chatHistory, setChatHistory] = useState<ChatMessage[]>([])
+  const [chatContext, setChatContext] = useState<{
+    ficha_tecnica: string; clasificacion: string; validacion: string; investigacion: string
+  }>({ ficha_tecnica: '', clasificacion: '', validacion: '', investigacion: '' })
+
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const fileRef = useRef<HTMLInputElement>(null)
   const bottomRef = useRef<HTMLDivElement>(null)
   const timers = useRef<ReturnType<typeof setTimeout>[]>([])
   const { open: openAuth } = useAuthModal()
   const { anonUsed, anonLimit, user } = useAppStore()
+  const sessionLoaded = useRef(false)
 
+  const hasResult = currentSessionId !== ''
   const isEmpty = messages.length === 0
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages])
+
+  // Load existing session
+  useEffect(() => {
+    if (sessionId && !sessionLoaded.current) {
+      sessionLoaded.current = true
+      loadSession(sessionId)
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sessionId])
+
+  async function loadSession(id: string) {
+    try {
+      const r = await fetch(`/api/session/${id}`)
+      if (!r.ok) return
+      const data = await r.json()
+
+      setCurrentSessionId(id)
+      setChatContext({
+        ficha_tecnica: data.ficha_tecnica ?? '',
+        clasificacion: data.clasificacion ?? '',
+        validacion: data.validacion ?? '',
+        investigacion: data.investigacion ?? '',
+      })
+
+      const loaded: Message[] = []
+
+      // Add original ficha as user message
+      if (data.ficha_tecnica) {
+        const preview = data.ficha_tecnica.substring(0, 150) + (data.ficha_tecnica.length > 150 ? '…' : '')
+        loaded.push({ type: 'user', text: preview })
+      }
+
+      // Add result
+      loaded.push({
+        type: 'result',
+        result: {
+          id: data.id,
+          subpartida: data.subpartida ?? '',
+          investigacion_html: data.investigacion_html ?? '',
+          clasificacion_html: data.clasificacion_html ?? '',
+          validacion_html: data.validacion_html ?? '',
+          investigacion_raw: data.investigacion ?? '',
+          clasificacion_raw: data.clasificacion ?? '',
+          validacion_raw: data.validacion ?? '',
+          ficha_tecnica: data.ficha_tecnica,
+          fuentes: data.fuentes ?? [],
+          tiempo_segundos: data.tiempo_segundos ?? 0,
+          costo_cop: data.costo_cop ?? 0,
+          costo_usd: data.costo_usd ?? 0,
+          tokens: data.tokens_total ?? data.tokens ?? 0,
+        },
+      })
+
+      // Add chat messages
+      const chatMsgs: ChatMessage[] = data.chat_messages ?? []
+      for (const msg of chatMsgs) {
+        if (msg.role === 'user') {
+          loaded.push({ type: 'user', text: msg.content })
+        } else {
+          loaded.push({ type: 'chat-reply', html: msg.content })
+        }
+      }
+      setChatHistory(chatMsgs)
+      setMessages(loaded)
+    } catch (e) {
+      console.error('Error loading session:', e)
+    }
+  }
 
   const updateLoadingSteps = (updater: (steps: Step[]) => Step[]) => {
     setMessages((prev) => {
@@ -74,23 +149,68 @@ export function ClasificarPage() {
 
   const handleFile = (f: File) => { setFile(f) }
 
+  // ── Send chat message (follow-up after classification) ──
+  const sendChatMessage = useCallback(async (msg: string) => {
+    setMessages((prev) => [...prev, { type: 'user', text: msg }])
+    setLoading(true)
+
+    try {
+      const r = await fetch('/api/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          message: msg,
+          clasificacion_id: currentSessionId,
+          ficha_tecnica: chatContext.ficha_tecnica,
+          clasificacion: chatContext.clasificacion,
+          validacion: chatContext.validacion,
+          investigacion: chatContext.investigacion,
+          history: chatHistory,
+        }),
+      })
+      const data = await r.json()
+
+      if (!r.ok) {
+        setMessages((prev) => [...prev, { type: 'error', text: data.error ?? 'Error' }])
+        return
+      }
+
+      setMessages((prev) => [...prev, { type: 'chat-reply', html: data.reply_html }])
+      setChatHistory((prev) => {
+        const updated = [...prev, { role: 'user' as const, content: msg }, { role: 'assistant' as const, content: data.reply }]
+        return updated.length > 20 ? updated.slice(-20) : updated
+      })
+    } catch {
+      setMessages((prev) => [...prev, { type: 'error', text: 'Error de conexión.' }])
+    } finally {
+      setLoading(false)
+    }
+  }, [currentSessionId, chatContext, chatHistory])
+
+  // ── Submit: classify or chat ──
   const submit = useCallback(async () => {
     if (loading || (!text.trim() && !file)) return
 
-    const inputType = detectInputType(text, file)
     const userText = file ? file.name : text.trim()
+    setText('')
+    setFile(null)
+    if (textareaRef.current) textareaRef.current.style.height = 'auto'
 
-    // Add user bubble and clear input immediately
+    // If we already have a result, send as chat follow-up
+    if (hasResult) {
+      await sendChatMessage(userText)
+      return
+    }
+
+    // ── First message: classify ──
+    const inputType = detectInputType(text, file)
+
     setMessages((prev) => [...prev, {
       type: 'user',
       text: userText,
       fileName: file ? file.name : undefined,
     }])
-    setText('')
-    setFile(null)
-    if (textareaRef.current) textareaRef.current.style.height = 'auto'
 
-    // Add loading bubble
     const initialSteps: Step[] = [
       { label: 'Investigador — buscando resoluciones DIAN + Perplexity', status: 'running' },
       { label: 'Clasificador — pendiente', status: 'idle' },
@@ -130,7 +250,6 @@ export function ClasificarPage() {
       const d = await r.json()
       clearTimers()
 
-      // Remove loading bubble
       setMessages((prev) => prev.filter((m) => m.type !== 'loading'))
 
       if (r.status === 402 || d.error === 'limit_reached') {
@@ -143,6 +262,24 @@ export function ClasificarPage() {
         return
       }
 
+      // Set session
+      const newId = d.id || ''
+      setCurrentSessionId(newId)
+      setChatContext({
+        ficha_tecnica: d.ficha_tecnica ?? '',
+        clasificacion: d.clasificacion_raw ?? '',
+        validacion: d.validacion_raw ?? '',
+        investigacion: d.investigacion_raw ?? '',
+      })
+      setChatHistory([])
+
+      // Update URL to /c/<id>
+      if (newId) {
+        const subpartida = d.clasificacion_raw?.match(/\d{4}\.\d{2}\.\d{2}\.\d{2}/)?.[0] ?? ''
+        window.history.pushState({ sessionId: newId }, '', `/c/${newId}`)
+        document.title = `ACA — ${subpartida || 'Clasificación'}`
+      }
+
       setMessages((prev) => [...prev, { type: 'result', result: d }])
     } catch {
       clearTimers()
@@ -152,7 +289,7 @@ export function ClasificarPage() {
       setLoading(false)
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [loading, text, file, anonLimit, openAuth])
+  }, [loading, text, file, anonLimit, openAuth, hasResult, sendChatMessage])
 
   return (
     <div style={{
@@ -226,6 +363,21 @@ export function ClasificarPage() {
                 </div>
               )
 
+              if (msg.type === 'chat-reply') return (
+                <div key={i} style={{ marginBottom: 16 }}>
+                  <div style={{
+                    background: 'var(--card)', border: '1px solid var(--border-2)',
+                    borderRadius: '16px 16px 16px 4px', padding: '12px 16px',
+                    fontSize: '.88rem', color: 'var(--text)',
+                  }}>
+                    <div
+                      className="markdown-body"
+                      dangerouslySetInnerHTML={{ __html: msg.html }}
+                    />
+                  </div>
+                </div>
+              )
+
               return null
             })}
             <div ref={bottomRef} style={{ height: 120 }} />
@@ -259,7 +411,10 @@ export function ClasificarPage() {
             <textarea
               ref={textareaRef}
               rows={1}
-              placeholder="Describe el producto, pega una URL o adjunta imagen/PDF…"
+              placeholder={hasResult
+                ? 'Pregunta sobre la clasificación, pega un link de la DIAN…'
+                : 'Describe el producto, pega una URL o adjunta imagen/PDF…'
+              }
               value={text}
               onChange={handleTextChange}
               onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); submit() } }}
@@ -271,21 +426,25 @@ export function ClasificarPage() {
                 padding: '4px 0',
               }}
             />
-            <input ref={fileRef} type="file" accept="image/*,.pdf" style={{ display: 'none' }}
-              onChange={(e) => e.target.files?.[0] && handleFile(e.target.files[0])} />
-            <button
-              onClick={() => fileRef.current?.click()}
-              disabled={loading}
-              style={{
-                background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-3)',
-                padding: 7, borderRadius: 8, display: 'flex', transition: 'background .15s',
-              }}
-              onMouseOver={(e) => (e.currentTarget.style.background = 'rgba(128,128,128,.1)')}
-              onMouseOut={(e) => (e.currentTarget.style.background = 'none')}
-              title="Adjuntar"
-            >
-              <Paperclip size={15} />
-            </button>
+            {!hasResult && (
+              <>
+                <input ref={fileRef} type="file" accept="image/*,.pdf" style={{ display: 'none' }}
+                  onChange={(e) => e.target.files?.[0] && handleFile(e.target.files[0])} />
+                <button
+                  onClick={() => fileRef.current?.click()}
+                  disabled={loading}
+                  style={{
+                    background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-3)',
+                    padding: 7, borderRadius: 8, display: 'flex', transition: 'background .15s',
+                  }}
+                  onMouseOver={(e) => (e.currentTarget.style.background = 'rgba(128,128,128,.1)')}
+                  onMouseOut={(e) => (e.currentTarget.style.background = 'none')}
+                  title="Adjuntar"
+                >
+                  <Paperclip size={15} />
+                </button>
+              </>
+            )}
             <button
               onClick={submit}
               disabled={loading || (!text.trim() && !file)}
@@ -305,7 +464,7 @@ export function ClasificarPage() {
           </div>
         </div>
         <div style={{ textAlign: 'center', fontSize: '.7rem', color: 'var(--text-3)', marginTop: 6 }}>
-          ACA puede cometer errores. Verifica la subpartida con un agente aduanero.
+          {hasResult ? 'Sesión activa — haz preguntas de seguimiento' : 'ACA puede cometer errores. Verifica con un agente aduanero.'}
         </div>
       </div>
     </div>
