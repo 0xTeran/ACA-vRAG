@@ -69,9 +69,37 @@ export function Sidebar() {
   const menuRef = useRef<HTMLDivElement>(null)
   const isMobile = useIsMobile()
 
-  useEffect(() => {
+  const refreshHistorial = useCallback(() => {
     fetch('/api/historial').then(r => r.json()).then(d => setRecords(d.registros ?? [])).catch(() => {})
-  }, [pathname])
+  }, [])
+
+  useEffect(() => { refreshHistorial() }, [pathname, refreshHistorial])
+
+  // Listen for new classification events from ClasificarPage
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const detail = (e as CustomEvent).detail
+      if (detail?.temp) {
+        // Add temporary entry at top immediately
+        setRecords(prev => [{
+          id: detail.id,
+          ficha_tecnica: detail.ficha_tecnica,
+          subpartida: '',
+          estado: 'pendiente' as const,
+          costo_cop: 0,
+          costo_usd: 0,
+          tokens: 0,
+          tiempo_segundos: 0,
+          created_at: new Date().toISOString(),
+        }, ...prev])
+      } else {
+        // Real result arrived, refresh from API
+        refreshHistorial()
+      }
+    }
+    window.addEventListener('aca:clasificacion', handler)
+    return () => window.removeEventListener('aca:clasificacion', handler)
+  }, [refreshHistorial])
 
   // Close mobile sidebar on navigation
   useEffect(() => { setMobileOpen(false) }, [pathname])

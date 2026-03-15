@@ -247,10 +247,13 @@ export function ClasificarPage({ sessionId }: Props) {
     setMessages((prev) => [...prev, { type: 'loading', steps: initialSteps }])
     setLoading(true)
 
-    // Change URL immediately (like ChatGPT) - will update with real ID after response
+    // Change URL immediately (like ChatGPT) and add to sidebar
     const tempId = crypto.randomUUID()
     window.history.replaceState(null, '', `/c/${tempId}`)
     document.title = 'ACA — Clasificando...'
+    window.dispatchEvent(new CustomEvent('aca:clasificacion', {
+      detail: { id: tempId, ficha_tecnica: userText.substring(0, 80), temp: true }
+    }))
 
     clearTimers()
     timers.current.push(setTimeout(() => {
@@ -306,11 +309,12 @@ export function ClasificarPage({ sessionId }: Props) {
       })
       setChatHistory([])
 
-      // Update URL with real session ID
+      // Update URL with real session ID and refresh sidebar
       if (newId) {
         const subpartida = d.clasificacion_raw?.match(/\d{4}\.\d{2}\.\d{2}\.\d{2}/)?.[0] ?? ''
         window.history.replaceState(null, '', `/c/${newId}`)
         document.title = `ACA — ${subpartida || 'Clasificación'}`
+        window.dispatchEvent(new CustomEvent('aca:clasificacion', { detail: { id: newId } }))
       }
 
       setMessages((prev) => [...prev, { type: 'result', result: d }])
