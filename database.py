@@ -113,10 +113,14 @@ def actualizar_estado(clasificacion_id: str, estado: str, notas: str = "") -> di
     }
     result = client.table("clasificaciones").update(data).eq("id", clasificacion_id).execute()
 
-    # Si se aprueba, agregar a base de conocimiento
+    # Si se aprueba, agregar a base de conocimiento + extraer lecciones del chat
     if estado == "aprobada" and result.data:
         cls = result.data[0]
         _agregar_a_conocimiento(cls)
+        try:
+            extraer_lecciones_de_chat(clasificacion_id)
+        except Exception:
+            pass  # No bloquear la aprobación si falla
 
     return result.data[0] if result.data else {}
 
@@ -246,6 +250,146 @@ def obtener_chat_mensajes(clasificacion_id: str) -> list[dict]:
         .execute()
     )
     return result.data or []
+
+
+# ── Lecciones aprendidas ──
+
+
+def guardar_leccion(
+    regla: str,
+    keywords: str,
+    agente: str = "clasificador",
+    subpartida: str = "",
+    producto: str = "",
+    fuente: str = "manual",
+    clasificacion_id: str = "",
+) -> dict:
+    """Guarda una lección aprendida."""
+    client = get_client()
+    data = {
+        "regla": regla,
+        "keywords": keywords,
+        "agente": agente,
+        "subpartida": subpartida,
+        "producto": producto[:500] if producto else "",
+        "fuente": fuente,
+    }
+    if clasificacion_id:
+        data["clasificacion_id"] = clasificacion_id
+    result = client.table("lecciones").insert(data).execute()
+    return result.data[0] if result.data else data
+
+
+def buscar_lecciones(ficha_tecnica: str, agente: str = "", limit: int = 8) -> list[dict]:
+    """Busca lecciones relevantes por keywords."""
+    words = set(re.findall(r'\b[a-záéíóúñ]{4,}\b', ficha_tecnica.lower()))
+    if not words:
+        return []
+
+    search_query = " | ".join(sorted(words)[:10])
+    client = get_client()
+
+    try:
+        q = client.table("lecciones").select(
+            "regla, subpartida, agente, producto, fuente"
+        ).text_search("keywords", search_query, config="spanish").limit(limit)
+
+        if agente:
+            q = q.eq("agente", agente)
+
+        result = q.execute()
+        return result.data or []
+    except Exception:
+        return []
+
+
+def extraer_lecciones_de_chat(clasificacion_id: str) -> list[dict]:
+    """Extrae lecciones de correcciones hechas en el chat de una clasificación.
+
+    Usa IA para analizar el historial de chat y extraer reglas aprendidas.
+    """
+    from openai import OpenAI
+    from config import MODEL, OPENROUTER_API_KEY, OPENROUTER_BASE_URL
+
+    # Obtener clasificación y chat
+    cls = obtener_clasificacion(clasificacion_id)
+    if not cls:
+        return []
+    mensajes = obtener_chat_mensajes(clasificacion_id)
+    if not mensajes:
+        return []
+
+    # Solo procesar si hay correcciones del usuario
+    chat_text = "\n".join(f"{m['role']}: {m['content']}" for m in mensajes)
+
+    client = OpenAI(api_key=OPENROUTER_API_KEY, base_url=OPENROUTER_BASE_URL)
+    response = client.chat.completions.create(
+        model=MODEL,
+        max_tokens=1500,
+        messages=[
+            {
+                "role": "system",
+                "content": (
+                    "Analiza esta conversación de chat sobre una clasificación arancelaria. "
+                    "Extrae SOLO las correcciones o reglas nuevas que el usuario enseñó. "
+                    "Responde SOLO en formato JSON array. Si no hay correcciones, responde []. "
+                    "Cada elemento: {\"regla\": \"texto corto de la regla\", \"agente\": \"clasificador|investigador|validador\", \"subpartida\": \"si aplica\"}"
+                ),
+            },
+            {
+                "role": "user",
+                "content": f"Producto: {cls.get('ficha_tecnica', '')[:300]}\n\n"
+                f"Clasificación original: {cls.get('subpartida', '')}\n\n"
+                f"Chat:\n{chat_text}",
+            },
+        ],
+    )
+
+    import json as _json
+    try:
+        raw = response.choices[0].message.content.strip()
+        # Extraer JSON del response
+        if "```" in raw:
+            raw = raw.split("```")[1].replace("json", "").strip()
+        lecciones_data = _json.loads(raw)
+        if not isinstance(lecciones_data, list):
+            return []
+
+        # Generar keywords del producto
+        producto = cls.get("ficha_tecnica", "")
+        words = set(re.findall(r'\b[a-záéíóúñ]{4,}\b', producto.lower()))
+        keywords = " ".join(sorted(words)[:20])
+
+        saved = []
+        for l in lecciones_data:
+            if not l.get("regla"):
+                continue
+            s = guardar_leccion(
+                regla=l["regla"],
+                keywords=keywords,
+                agente=l.get("agente", "clasificador"),
+                subpartida=l.get("subpartida", cls.get("subpartida", "")),
+                producto=producto[:300],
+                fuente=f"chat sesión {clasificacion_id[:8]}",
+                clasificacion_id=clasificacion_id,
+            )
+            saved.append(s)
+        return saved
+    except Exception:
+        return []
+
+
+def listar_lecciones(limit: int = 50) -> list[dict]:
+    """Lista todas las lecciones."""
+    client = get_client()
+    result = client.table("lecciones").select("*").order("created_at", desc=True).limit(limit).execute()
+    return result.data or []
+
+
+def eliminar_leccion(leccion_id: str) -> bool:
+    client = get_client()
+    client.table("lecciones").delete().eq("id", leccion_id).execute()
+    return True
 
 
 # ── Agent Prompts ──

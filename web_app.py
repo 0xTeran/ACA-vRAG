@@ -47,18 +47,22 @@ from config import (
 from database import (
     actualizar_estado,
     buscar_conocimiento,
+    buscar_lecciones,
     calcular_costo_total,
     crear_verificacion,
+    eliminar_leccion,
     get_agent_prompt,
     get_all_agent_prompts,
     get_anon_count,
     get_or_create_usuario,
     get_usuario,
     guardar_clasificacion,
+    guardar_leccion,
     guardar_mensaje_chat,
     importar_conocimiento,
     increment_anon_count,
     listar_clasificaciones,
+    listar_lecciones,
     obtener_chat_mensajes,
     obtener_clasificacion,
     stats_conocimiento,
@@ -233,18 +237,33 @@ def extract_text_from_url(user_url: str) -> str:
 
 
 def _build_knowledge_context(ficha_tecnica: str) -> str:
-    """Busca clasificaciones previas relevantes y las formatea como contexto."""
+    """Busca clasificaciones previas y lecciones aprendidas relevantes."""
+    parts: list[str] = []
+
+    # Precedentes aprobados
     precedentes = buscar_conocimiento(ficha_tecnica, limit=5)
-    if not precedentes:
-        return ""
-    lines = ["## Precedentes de clasificación en la base de conocimiento:\n"]
-    for i, p in enumerate(precedentes, 1):
-        lines.append(f"**{i}. Producto:** {p['producto'][:200]}")
-        lines.append(f"   **Subpartida:** {p['subpartida']} | Gravamen: {p.get('gravamen_pct', '?')}%")
-        if p.get("justificacion"):
-            lines.append(f"   **Justificación:** {p['justificacion'][:300]}")
-        lines.append(f"   **Fuente:** {p.get('fuente', 'N/A')}\n")
-    return "\n".join(lines)
+    if precedentes:
+        lines = ["## Precedentes aprobados en la base de conocimiento:\n"]
+        for i, p in enumerate(precedentes, 1):
+            lines.append(f"**{i}. Producto:** {p['producto'][:200]}")
+            lines.append(f"   **Subpartida:** {p['subpartida']} | Gravamen: {p.get('gravamen_pct', '?')}%")
+            if p.get("justificacion"):
+                lines.append(f"   **Justificación:** {p['justificacion'][:300]}")
+            lines.append(f"   **Fuente:** {p.get('fuente', 'N/A')}\n")
+        parts.append("\n".join(lines))
+
+    # Lecciones aprendidas de correcciones en chats
+    lecciones = buscar_lecciones(ficha_tecnica, agente="clasificador", limit=8)
+    if lecciones:
+        lines = ["## Lecciones aprendidas (correcciones de clasificaciones anteriores):\n"]
+        for i, l in enumerate(lecciones, 1):
+            lines.append(f"**{i}.** {l['regla']}")
+            if l.get("subpartida"):
+                lines.append(f"   Subpartida: {l['subpartida']}")
+            lines.append(f"   Fuente: {l.get('fuente', '?')}\n")
+        parts.append("\n".join(lines))
+
+    return "\n\n".join(parts)
 
 
 # ── Rutas ──
@@ -579,6 +598,39 @@ def chat():
     except Exception as e:
         traceback.print_exc()
         return jsonify({"error": str(e)}), 500
+
+
+# ── Lecciones ──
+
+@app.route("/lecciones")
+def get_lecciones():
+    return jsonify({"lecciones": listar_lecciones(limit=100)})
+
+
+@app.route("/lecciones", methods=["POST"])
+def post_leccion():
+    try:
+        data = request.get_json()
+        if not data or not data.get("regla"):
+            return jsonify({"error": "Falta la regla."}), 400
+        result = guardar_leccion(
+            regla=data["regla"],
+            keywords=data.get("keywords", ""),
+            agente=data.get("agente", "clasificador"),
+            subpartida=data.get("subpartida", ""),
+            producto=data.get("producto", ""),
+            fuente=data.get("fuente", "manual"),
+            clasificacion_id=data.get("clasificacion_id", ""),
+        )
+        return jsonify({"ok": True, "leccion": result})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/lecciones/<leccion_id>", methods=["DELETE"])
+def delete_leccion(leccion_id):
+    eliminar_leccion(leccion_id)
+    return jsonify({"ok": True})
 
 
 # ── Agent Prompts ──

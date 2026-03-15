@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useRef, useCallback, useEffect } from 'react'
-import { Send, Paperclip, X } from 'lucide-react'
+import { Send, Paperclip, X, BookmarkPlus } from 'lucide-react'
 import { Logo } from '@/components/ui/Logo'
 import { LoadingCard } from './LoadingCard'
 import { ResultsView } from './ResultsView'
@@ -15,7 +15,7 @@ type Message =
   | { type: 'user'; text: string; fileName?: string }
   | { type: 'loading'; steps: Step[] }
   | { type: 'result'; result: ClasificarResult }
-  | { type: 'chat-reply'; html: string }
+  | { type: 'chat-reply'; html: string; raw: string }
   | { type: 'thinking' }
   | { type: 'error'; text: string }
 
@@ -50,6 +50,27 @@ export function ClasificarPage({ sessionId }: Props) {
   const hasResult = currentSessionId !== ''
   const isEmpty = messages.length === 0
   const [dragging, setDragging] = useState(false)
+  const [savedLesson, setSavedLesson] = useState<number | null>(null)
+
+  const saveAsLesson = async (raw: string, idx: number) => {
+    try {
+      await fetch('/api/lecciones', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          regla: raw.substring(0, 500),
+          keywords: chatContext.ficha_tecnica.substring(0, 200),
+          agente: 'clasificador',
+          subpartida: '',
+          producto: chatContext.ficha_tecnica.substring(0, 300),
+          fuente: `chat sesión ${currentSessionId.substring(0, 8)}`,
+          clasificacion_id: currentSessionId,
+        }),
+      })
+      setSavedLesson(idx)
+      setTimeout(() => setSavedLesson(null), 3000)
+    } catch {}
+  }
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -180,7 +201,7 @@ export function ClasificarPage({ sessionId }: Props) {
         return
       }
 
-      setMessages((prev) => [...prev, { type: 'chat-reply', html: data.reply_html }])
+      setMessages((prev) => [...prev, { type: 'chat-reply', html: data.reply_html, raw: data.reply }])
       setChatHistory((prev) => {
         const updated = [...prev, { role: 'user' as const, content: msg }, { role: 'assistant' as const, content: data.reply }]
         return updated.length > 20 ? updated.slice(-20) : updated
@@ -419,6 +440,24 @@ export function ClasificarPage({ sessionId }: Props) {
                       className="markdown-body"
                       dangerouslySetInnerHTML={{ __html: msg.html }}
                     />
+                    <div style={{ marginTop: 8, display: 'flex', justifyContent: 'flex-end' }}>
+                      <button
+                        onClick={() => saveAsLesson(msg.raw, i)}
+                        disabled={savedLesson === i}
+                        style={{
+                          background: 'none', border: 'none', cursor: 'pointer',
+                          color: savedLesson === i ? 'var(--green)' : 'var(--text-3)',
+                          fontSize: '.72rem', display: 'flex', alignItems: 'center', gap: 4,
+                          padding: '2px 6px', borderRadius: 6, transition: 'color .15s',
+                        }}
+                        onMouseOver={e => { if (savedLesson !== i) e.currentTarget.style.color = 'var(--text-2)' }}
+                        onMouseOut={e => { if (savedLesson !== i) e.currentTarget.style.color = 'var(--text-3)' }}
+                        title="Guardar como lección para futuras clasificaciones"
+                      >
+                        <BookmarkPlus size={12} />
+                        {savedLesson === i ? 'Guardado ✓' : 'Guardar como lección'}
+                      </button>
+                    </div>
                   </div>
                 </div>
               )
