@@ -392,8 +392,12 @@ def clasificar():
             search_query += " subpartidas: " + " ".join(subpartidas_inv)
         decreto_ctx = buscar_decreto_semantico(search_query, top_k=15)
 
-        # Complementar con datos exactos de las subpartidas del investigador
-        arancel_ctx = obtener_contexto_arancel_estructurado(ficha_tecnica, subpartidas_inv)
+        # Extraer TODAS las subpartidas mencionadas en el RAG para expandir partidas hermanas
+        subpartidas_rag = re.findall(r'\d{4}\.\d{2}', decreto_ctx)
+        todas_subpartidas = list(set(subpartidas_inv + subpartidas_rag))
+
+        # Complementar con TODAS las subpartidas hermanas de cada partida encontrada
+        arancel_ctx = obtener_contexto_arancel_estructurado(ficha_tecnica, todas_subpartidas)
 
         # Conocimiento previo (precedentes + lecciones)
         knowledge_ctx = _build_knowledge_context(ficha_tecnica)
@@ -409,13 +413,27 @@ def clasificar():
         res_cls = clasificar_producto(ficha_tecnica, clasificador_contexto, investigacion, model=selected_model)
         clasificacion = res_cls["clasificacion_raw"]
 
-        # Paso 3: Validador - búsqueda RAG independiente para verificar
-        # Busca con la subpartida propuesta + producto para encontrar notas de exclusión
+        # Paso 3: Validador - búsqueda RAG independiente + partida completa
         sub_propuesta = re.search(r'\d{4}\.\d{2}\.\d{2}\.\d{2}', clasificacion)
         val_search = ficha_tecnica
+        val_subpartidas = list(todas_subpartidas)  # Heredar las del clasificador
         if sub_propuesta:
             val_search += f" subpartida {sub_propuesta.group(0)} partida {sub_propuesta.group(0)[:5]}"
+            val_subpartidas.append(sub_propuesta.group(0)[:7])
+
         validador_ctx = buscar_decreto_semantico(val_search, top_k=10)
+        # Traer TODAS las subpartidas hermanas de la partida propuesta
+        from database import buscar_arancel_por_partida
+        if sub_propuesta:
+            partida_propuesta = sub_propuesta.group(0)[:5]
+            hermanas = buscar_arancel_por_partida(partida_propuesta)
+            if hermanas:
+                lines = [f"\n\n## TODAS las subpartidas de la partida {partida_propuesta} (para verificar alternativas):"]
+                for h in hermanas:
+                    marker = " ← PROPUESTA" if h['codigo'] == sub_propuesta.group(0) else ""
+                    grv = f" | Gravamen: {h.get('gravamen', '?')}%" if h.get('gravamen') is not None else ""
+                    lines.append(f"  {h['codigo']} — {h['descripcion']}{grv}{marker}")
+                validador_ctx += "\n".join(lines)
         if arancel_ctx:
             validador_ctx += "\n\n" + arancel_ctx
 
