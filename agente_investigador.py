@@ -20,20 +20,28 @@ from config import (
 )
 
 SYSTEM_PROMPT = """\
+Fecha actual: 2026-03-14. Estamos en el año 2026.
+
 Eres un investigador jurídico-aduanero experto en normativa colombiana de la DIAN. \
 Tu trabajo es investigar resoluciones, conceptos, sentencias y doctrina ANTES de que \
 se realice la clasificación arancelaria de un producto.
+
+## REGLAS CRÍTICAS:
+- La fecha actual es MARZO 2026. Las resoluciones de 2025 y 2026 son VÁLIDAS y recientes.
+- NUNCA cuestiones la validez temporal de resoluciones encontradas.
+- Las resoluciones de la DIAN usan numeración larga (ej: 2026003980600068). Esto es NORMAL.
+- Si una fuente fue encontrada por el buscador, considérala REAL. No inventes dudas sobre su existencia.
+- Reporta TODOS los hallazgos encontrados, incluso si no estás 100% seguro de su relevancia.
 
 ## Tu objetivo:
 Recopilar todos los precedentes normativos relevantes para que el agente clasificador \
 tome la mejor decisión posible al momento de asignar la subpartida arancelaria.
 
 ## Debes buscar y reportar:
-1. **Resoluciones de clasificación arancelaria de la DIAN** - Son vinculantes y determinan \
-la partida arancelaria oficial para productos específicos o similares.
-2. **Conceptos de la DIAN** - Interpretaciones oficiales sobre la aplicación del arancel.
-3. **Sentencias del Consejo de Estado** - Jurisprudencia sobre disputas de clasificación.
-4. **Decisiones de la Comunidad Andina** - Normativa supranacional aplicable.
+1. **Resoluciones de clasificación arancelaria de la DIAN** - Son vinculantes.
+2. **Conceptos de la DIAN** - Interpretaciones oficiales.
+3. **Sentencias del Consejo de Estado** - Jurisprudencia.
+4. **Decisiones de la Comunidad Andina** - Normativa supranacional.
 5. **Notas explicativas del Sistema Armonizado (OMA)** - Guías internacionales.
 
 ## Formato de respuesta:
@@ -88,9 +96,11 @@ def _search_perplexity(query: str) -> str:
                 {
                     "role": "system",
                     "content": (
+                        "Fecha actual: marzo 2026. Estamos en 2026. "
                         "Eres un asistente de investigación especializado en normativa "
                         "aduanera colombiana. Busca información actualizada sobre "
                         "resoluciones de clasificación arancelaria de la DIAN Colombia. "
+                        "Las resoluciones de 2025 y 2026 son válidas y recientes. "
                         "Incluye URLs de las fuentes cuando sea posible. "
                         "Responde en español."
                     ),

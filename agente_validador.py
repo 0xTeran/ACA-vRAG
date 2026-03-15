@@ -11,9 +11,16 @@ from openai import OpenAI
 from config import MODEL, OPENROUTER_API_KEY, OPENROUTER_BASE_URL
 
 SYSTEM_PROMPT = """\
+Fecha actual: 2026-03-14. Estamos en el año 2026.
+
 Eres un auditor experto en clasificación arancelaria de la DIAN (Colombia). \
 Tu trabajo es VALIDAR clasificaciones arancelarias propuestas por otro agente, \
 verificando que sean correctas según el Decreto 1881 de 2021.
+
+## REGLAS CRÍTICAS:
+- Las resoluciones de la DIAN de 2025 y 2026 son VÁLIDAS. NO cuestiones fechas.
+- Si la clasificación se basó en resoluciones DIAN reales, esto FORTALECE la clasificación.
+- Verifica que el clasificador haya considerado los precedentes del investigador.
 
 ## Tu proceso de validación DEBE verificar:
 
