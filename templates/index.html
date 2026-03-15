@@ -512,9 +512,11 @@
                 // Change URL to session URL (like ChatGPT /c/...)
                 if (currentId) {
                     window.history.pushState({sessionId: currentId}, '', '/c/' + currentId);
+                    document.title = 'ACA — ' + (data.clasificacion_raw.match(/\d{4}\.\d{2}\.\d{2}\.\d{2}/)?.[0] || 'Clasificación');
                 }
                 // Switch to chat mode
                 switchToChatMode();
+                console.log('Session created:', currentId);
             }catch(err){document.getElementById('error-message').textContent=err.message;errorBox.classList.remove('hidden')}
             finally{loading.classList.add('hidden');btn.disabled=false;btn.innerHTML='<i class="fas fa-search"></i> Clasificar Producto'}
         });
