@@ -404,15 +404,19 @@ def extraer_caracteristicas(ficha_tecnica: str) -> list[dict]:
         return []
 
 
-def buscar_resoluciones_relevantes(ficha_tecnica: str, top_k: int = 5) -> str:
-    """Busca resoluciones DIAN similares al producto para aprender metodología.
+def buscar_resoluciones_relevantes(ficha_tecnica: str, top_k: int = 3) -> str:
+    """Busca resoluciones DIAN similares y retorna su contenido completo.
 
-    No busca el producto exacto — busca resoluciones donde la DIAN clasificó
-    productos similares para entender cómo razona e interpreta las reglas.
+    Los agentes usan esto para aprender la METODOLOGÍA de la DIAN:
+    - Cómo analiza fichas técnicas
+    - Cómo aplica las RGI
+    - Cómo decide entre partidas competidoras
+    - Cómo justifica y descarta alternativas
     """
     embedding = _embed_text(ficha_tecnica)
     client = get_client()
 
+    # Buscar por similitud semántica
     result = client.rpc("buscar_resoluciones_similares", {
         "query_embedding": embedding,
         "match_count": top_k,
@@ -423,25 +427,33 @@ def buscar_resoluciones_relevantes(ficha_tecnica: str, top_k: int = 5) -> str:
     if not resoluciones:
         return ""
 
+    # Traer contenido completo de las resoluciones encontradas
+    ids = [r["id"] for r in resoluciones]
+    contenidos = client.table("resoluciones_dian").select(
+        "id, numero, fecha, contenido, subpartidas, producto, url"
+    ).in_("id", ids).execute()
+
+    contenido_map = {c["id"]: c for c in (contenidos.data or [])}
+
     parts = [
-        "## PRECEDENTES REALES DE LA DIAN (resoluciones oficiales indexadas):",
-        "⚠️ Estas resoluciones muestran cómo la DIAN clasifica productos SIMILARES.",
-        "Estudia su METODOLOGÍA de razonamiento, no solo la subpartida asignada.\n",
+        "## RESOLUCIONES DIAN REALES — CONTENIDO COMPLETO PARA ANÁLISIS:",
+        "⚠️ Estas resoluciones son CASOS REALES de la DIAN clasificando productos similares.",
+        "ESTUDIA: cómo analizan la ficha técnica, qué RGI aplican, por qué descartan",
+        "alternativas, y cómo justifican la clasificación final.\n",
     ]
 
     for i, r in enumerate(resoluciones, 1):
         sim = round(r.get("similarity", 0) * 100, 1)
-        subs = ", ".join(r.get("subpartidas", [])[:3]) or "sin subpartida"
-        parts.append(
-            f"### [{i}] Resolución {r.get('numero', '?')} ({r.get('fecha', '?')}) — sim: {sim}%"
-        )
+        full = contenido_map.get(r["id"], {})
+        subs = ", ".join(r.get("subpartidas", [])[:5]) or "sin subpartida"
+
+        parts.append(f"### ═══ RESOLUCIÓN {i}: {full.get('numero', r.get('numero', '?'))} ({full.get('fecha', r.get('fecha', '?'))}) ═══")
+        parts.append(f"**Similitud con tu producto:** {sim}%")
         parts.append(f"**Subpartidas asignadas:** {subs}")
-        if r.get("producto"):
-            parts.append(f"**Producto:** {r['producto'][:200]}")
-        if r.get("resumen"):
-            parts.append(f"**Resumen:** {r['resumen']}")
-        parts.append(f"**URL:** {r.get('url', '')}")
-        parts.append("")
+        parts.append(f"**URL:** {full.get('url', r.get('url', ''))}")
+        parts.append(f"\n**CONTENIDO DE LA RESOLUCIÓN:**")
+        parts.append(full.get("contenido", "")[:5000])
+        parts.append("\n" + "─" * 40 + "\n")
 
     return "\n".join(parts)
 
