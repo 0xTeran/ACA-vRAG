@@ -405,8 +405,15 @@ def cambiar_estado():
         estado = data.get("estado", "").strip()
         notas = data.get("notas", "").strip()
 
-        if not clasificacion_id or estado not in ("aprobada", "rechazada", "investigar"):
+        if not clasificacion_id or estado not in ("aprobada", "rechazada", "investigar", "eliminada"):
             return jsonify({"error": "ID o estado inválido."}), 400
+
+        if estado == "eliminada":
+            from database import get_client
+            client = get_client()
+            client.table("chat_mensajes").delete().eq("clasificacion_id", clasificacion_id).execute()
+            client.table("clasificaciones").delete().eq("id", clasificacion_id).execute()
+            return jsonify({"ok": True, "deleted": True})
 
         result = actualizar_estado(clasificacion_id, estado, notas)
         return jsonify({"ok": True, "registro": result})

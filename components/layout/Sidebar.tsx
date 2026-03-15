@@ -1,17 +1,17 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
-import { usePathname } from 'next/navigation'
-import { PenSquare, PanelLeftClose, PanelLeft, Clock, Search, Database, Settings } from 'lucide-react'
+import { usePathname, useRouter } from 'next/navigation'
+import { PenSquare, PanelLeftClose, PanelLeft, Menu, Clock, Search, Database, MoreHorizontal, Trash2, CheckCircle, XCircle, Microscope, X } from 'lucide-react'
 import { Logo } from '@/components/ui/Logo'
+import { useAppStore } from '@/store/appStore'
 import { ClasificacionRecord } from '@/types'
 
 function timeAgo(dateStr: string): string {
   const d = new Date(dateStr)
   const now = new Date()
-  const diffMs = now.getTime() - d.getTime()
-  const diffDays = Math.floor(diffMs / 86400000)
+  const diffDays = Math.floor((now.getTime() - d.getTime()) / 86400000)
   if (diffDays === 0) return 'Hoy'
   if (diffDays === 1) return 'Ayer'
   if (diffDays < 7) return `Hace ${diffDays} días`
@@ -31,164 +31,252 @@ function groupByDate(records: ClasificacionRecord[]): { label: string; items: Cl
 
 function getTitle(r: ClasificacionRecord): string {
   const ficha = r.ficha_tecnica ?? r.fuente_nombre ?? ''
-  if (r.subpartida && ficha) {
-    return `${r.subpartida} — ${ficha.slice(0, 40)}`
-  }
+  if (r.subpartida && ficha) return `${r.subpartida} — ${ficha.slice(0, 35)}`
   return ficha.slice(0, 50) || r.subpartida || 'Sin título'
 }
 
+function useIsMobile() {
+  const [mobile, setMobile] = useState(false)
+  useEffect(() => {
+    const check = () => setMobile(window.innerWidth < 768)
+    check()
+    window.addEventListener('resize', check)
+    return () => window.removeEventListener('resize', check)
+  }, [])
+  return mobile
+}
+
 export function Sidebar() {
-  const [open, setOpen] = useState(true)
+  const [desktopOpen, setDesktopOpen] = useState(true)
+  const [mobileOpen, setMobileOpen] = useState(false)
   const [records, setRecords] = useState<ClasificacionRecord[]>([])
   const [search, setSearch] = useState('')
+  const [menuId, setMenuId] = useState<string | null>(null)
+  const [hoverId, setHoverId] = useState<string | null>(null)
   const pathname = usePathname()
+  const router = useRouter()
+  const { isAdmin } = useAppStore()
+  const menuRef = useRef<HTMLDivElement>(null)
+  const isMobile = useIsMobile()
 
   useEffect(() => {
-    fetch('/api/historial')
-      .then(r => r.json())
-      .then(d => setRecords(d.registros ?? []))
-      .catch(() => {})
+    fetch('/api/historial').then(r => r.json()).then(d => setRecords(d.registros ?? [])).catch(() => {})
   }, [pathname])
+
+  // Close mobile sidebar on navigation
+  useEffect(() => { setMobileOpen(false) }, [pathname])
+
+  useEffect(() => {
+    if (!menuId) return
+    const handler = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) setMenuId(null)
+    }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [menuId])
 
   const filtered = search.trim()
     ? records.filter(r => {
         const s = search.trim().toLowerCase()
-        return (r.ficha_tecnica ?? '').toLowerCase().includes(s)
-          || (r.subpartida ?? '').includes(s)
-          || (r.fuente_nombre ?? '').toLowerCase().includes(s)
+        return (r.ficha_tecnica ?? '').toLowerCase().includes(s) || (r.subpartida ?? '').includes(s)
       })
     : records
 
   const groups = groupByDate(filtered)
   const activeId = pathname.match(/^\/c\/([a-f0-9-]+)/i)?.[1]
 
-  if (!open) {
+  const deleteRecord = async (id: string) => {
+    setMenuId(null)
+    try {
+      await fetch('/api/estado', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id, estado: 'eliminada', notas: '' }) })
+      setRecords(prev => prev.filter(r => r.id !== id))
+      if (activeId === id) router.push('/')
+    } catch {}
+  }
+
+  const setEstado = async (id: string, estado: string) => {
+    setMenuId(null)
+    try {
+      await fetch('/api/estado', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id, estado, notas: '' }) })
+      setRecords(prev => prev.map(r => r.id === id ? { ...r, estado: estado as ClasificacionRecord['estado'] } : r))
+    } catch {}
+  }
+
+  // ── Sidebar content (shared between desktop and mobile) ──
+  const sidebarContent = (
+    <>
+      {/* Header */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 12px 0' }}>
+        <Link href="/" style={{ display: 'flex', alignItems: 'center', textDecoration: 'none' }}><Logo height={20} /></Link>
+        <button onClick={() => isMobile ? setMobileOpen(false) : setDesktopOpen(false)} style={iconBtnStyle}>
+          {isMobile ? <X size={18} /> : <PanelLeftClose size={16} />}
+        </button>
+      </div>
+
+      {/* Action buttons */}
+      <div style={{ padding: '12px 12px 8px', display: 'flex', flexDirection: 'column', gap: 2 }}>
+        <button onClick={() => setSearch(search ? '' : ' ')} style={sideBtnStyle}
+          onMouseOver={e => e.currentTarget.style.background = 'rgba(128,128,128,.1)'}
+          onMouseOut={e => e.currentTarget.style.background = 'transparent'}>
+          <Search size={16} /> Buscar
+        </button>
+        <Link href="/" onClick={() => setMobileOpen(false)} style={{ ...sideBtnStyle, textDecoration: 'none' }}
+          onMouseOver={e => e.currentTarget.style.background = 'rgba(128,128,128,.1)'}
+          onMouseOut={e => e.currentTarget.style.background = 'transparent'}>
+          <PenSquare size={16} /> Nueva clasificación
+        </Link>
+      </div>
+
+      {/* Search input */}
+      {search !== '' && (
+        <div style={{ padding: '0 12px 8px' }}>
+          <input autoFocus value={search === ' ' ? '' : search}
+            onChange={e => setSearch(e.target.value || ' ')}
+            onBlur={() => { if (search.trim() === '') setSearch('') }}
+            placeholder="Buscar por producto o subpartida..."
+            style={{ width: '100%', background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 10, padding: '8px 12px', outline: 'none', color: 'var(--text)', fontFamily: 'inherit', fontSize: '.8rem' }}
+          />
+        </div>
+      )}
+
+      {/* History list */}
+      <div style={{ flex: 1, overflowY: 'auto', padding: '0 8px' }}>
+        {groups.map((group) => (
+          <div key={group.label} style={{ marginBottom: 4 }}>
+            <div style={{ fontSize: '.68rem', fontWeight: 600, color: 'var(--text-3)', padding: '10px 8px 4px', textTransform: 'uppercase', letterSpacing: '.04em' }}>
+              {group.label}
+            </div>
+            {group.items.map((r) => (
+              <div key={r.id} style={{ position: 'relative' }}
+                onMouseEnter={() => setHoverId(r.id)} onMouseLeave={() => setHoverId(null)}>
+                <Link href={`/c/${r.id}`} onClick={() => setMobileOpen(false)} style={{
+                  display: 'flex', alignItems: 'center', padding: '8px 10px', borderRadius: 8,
+                  textDecoration: 'none', fontSize: '.82rem', lineHeight: 1.4,
+                  color: activeId === r.id ? 'var(--text)' : 'var(--text-2)',
+                  background: activeId === r.id ? 'rgba(128,128,128,.12)' : 'transparent',
+                  transition: 'background .15s',
+                }}
+                  onMouseOver={e => { if (activeId !== r.id) e.currentTarget.style.background = 'rgba(128,128,128,.06)' }}
+                  onMouseOut={e => { if (activeId !== r.id) e.currentTarget.style.background = 'transparent' }}>
+                  <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1, paddingRight: 20 }}>
+                    {getTitle(r)}
+                  </span>
+                </Link>
+
+                {(hoverId === r.id || menuId === r.id) && (
+                  <button onClick={e => { e.preventDefault(); e.stopPropagation(); setMenuId(menuId === r.id ? null : r.id) }}
+                    style={{ position: 'absolute', right: 6, top: '50%', transform: 'translateY(-50%)', background: 'var(--sidebar-bg, var(--bg))', border: 'none', cursor: 'pointer', color: 'var(--text-3)', padding: 4, borderRadius: 6, display: 'flex' }}
+                    onMouseOver={e => e.currentTarget.style.color = 'var(--text)'} onMouseOut={e => e.currentTarget.style.color = 'var(--text-3)'}>
+                    <MoreHorizontal size={15} />
+                  </button>
+                )}
+
+                {menuId === r.id && (
+                  <div ref={menuRef} style={{ position: 'absolute', right: 0, top: '100%', zIndex: 300, background: 'var(--card)', border: '1px solid var(--border-2)', borderRadius: 10, padding: 6, minWidth: 180, boxShadow: '0 8px 32px rgba(0,0,0,.4)' }}>
+                    <button onClick={() => setEstado(r.id, 'aprobada')} style={menuItemStyle} onMouseOver={e => e.currentTarget.style.background = 'rgba(128,128,128,.1)'} onMouseOut={e => e.currentTarget.style.background = 'transparent'}>
+                      <CheckCircle size={14} style={{ color: 'var(--green)' }} /> Aprobar
+                    </button>
+                    <button onClick={() => setEstado(r.id, 'rechazada')} style={menuItemStyle} onMouseOver={e => e.currentTarget.style.background = 'rgba(128,128,128,.1)'} onMouseOut={e => e.currentTarget.style.background = 'transparent'}>
+                      <XCircle size={14} style={{ color: 'var(--red)' }} /> Rechazar
+                    </button>
+                    <button onClick={() => setEstado(r.id, 'investigar')} style={menuItemStyle} onMouseOver={e => e.currentTarget.style.background = 'rgba(128,128,128,.1)'} onMouseOut={e => e.currentTarget.style.background = 'transparent'}>
+                      <Microscope size={14} style={{ color: 'var(--yellow)' }} /> Investigar
+                    </button>
+                    <div style={{ height: 1, background: 'var(--border)', margin: '4px 0' }} />
+                    <button onClick={() => deleteRecord(r.id)} style={{ ...menuItemStyle, color: 'var(--red)' }} onMouseOver={e => e.currentTarget.style.background = 'rgba(248,113,113,.08)'} onMouseOut={e => e.currentTarget.style.background = 'transparent'}>
+                      <Trash2 size={14} /> Eliminar
+                    </button>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        ))}
+        {records.length === 0 && (
+          <div style={{ textAlign: 'center', padding: '32px 16px', color: 'var(--text-3)', fontSize: '.82rem' }}>No hay clasificaciones aún</div>
+        )}
+      </div>
+
+      {/* Bottom */}
+      <div style={{ borderTop: '1px solid var(--border)', padding: 8 }}>
+        <Link href="/historial" onClick={() => setMobileOpen(false)} style={bottomLinkStyle}
+          onMouseOver={e => e.currentTarget.style.background = 'rgba(128,128,128,.08)'} onMouseOut={e => e.currentTarget.style.background = 'transparent'}>
+          <Clock size={14} /> Historial completo
+        </Link>
+        {isAdmin && (
+          <Link href="/importar" onClick={() => setMobileOpen(false)} style={bottomLinkStyle}
+            onMouseOver={e => e.currentTarget.style.background = 'rgba(128,128,128,.08)'} onMouseOut={e => e.currentTarget.style.background = 'transparent'}>
+            <Database size={14} /> Importar BD
+          </Link>
+        )}
+      </div>
+    </>
+  )
+
+  // ── MOBILE: hamburger button + overlay sidebar ──
+  if (isMobile) {
+    return (
+      <>
+        {/* Hamburger button (fixed top-left) */}
+        <button onClick={() => setMobileOpen(true)} style={{
+          position: 'fixed', top: 10, left: 10, zIndex: 150,
+          background: 'var(--card)', border: '1px solid var(--border)',
+          borderRadius: 10, padding: 8, cursor: 'pointer', color: 'var(--text)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          boxShadow: '0 2px 8px rgba(0,0,0,.15)',
+        }}>
+          <Menu size={18} />
+        </button>
+
+        {/* Overlay */}
+        {mobileOpen && (
+          <>
+            <div onClick={() => setMobileOpen(false)} style={{
+              position: 'fixed', inset: 0, zIndex: 199,
+              background: 'rgba(0,0,0,.5)', backdropFilter: 'blur(2px)',
+            }} />
+            <div style={{
+              position: 'fixed', top: 0, left: 0, bottom: 0, width: 300, zIndex: 250,
+              display: 'flex', flexDirection: 'column',
+              background: 'var(--sidebar-bg, var(--bg))',
+              boxShadow: '4px 0 24px rgba(0,0,0,.3)',
+            }}>
+              {sidebarContent}
+            </div>
+          </>
+        )}
+
+        <style>{`:root { --sidebar-w: 0px; }`}</style>
+      </>
+    )
+  }
+
+  // ── DESKTOP: collapsed ──
+  if (!desktopOpen) {
     return (
       <div style={{
         position: 'fixed', top: 0, left: 0, bottom: 0, width: 50, zIndex: 200,
         display: 'flex', flexDirection: 'column', alignItems: 'center',
         paddingTop: 14, gap: 8,
-        background: 'var(--sidebar-bg, var(--bg))',
-        borderRight: '1px solid var(--border)',
+        background: 'var(--sidebar-bg, var(--bg))', borderRight: '1px solid var(--border)',
       }}>
-        <button onClick={() => setOpen(true)} style={iconBtnStyle} title="Abrir sidebar">
-          <PanelLeft size={18} />
-        </button>
-        <Link href="/" style={iconBtnStyle} title="Nueva clasificación">
-          <PenSquare size={18} />
-        </Link>
+        <button onClick={() => setDesktopOpen(true)} style={iconBtnStyle}><PanelLeft size={18} /></button>
+        <Link href="/" style={iconBtnStyle}><PenSquare size={18} /></Link>
       </div>
     )
   }
 
+  // ── DESKTOP: open ──
   return (
     <>
       <div style={{
         position: 'fixed', top: 0, left: 0, bottom: 0, width: 280, zIndex: 200,
         display: 'flex', flexDirection: 'column',
-        background: 'var(--sidebar-bg, var(--bg))',
-        borderRight: '1px solid var(--border)',
+        background: 'var(--sidebar-bg, var(--bg))', borderRight: '1px solid var(--border)',
       }}>
-        {/* Header */}
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 12px 0' }}>
-          <Link href="/" style={{ display: 'flex', alignItems: 'center', textDecoration: 'none' }}>
-            <Logo height={20} />
-          </Link>
-          <button onClick={() => setOpen(false)} style={iconBtnStyle} title="Cerrar sidebar">
-            <PanelLeftClose size={16} />
-          </button>
-        </div>
-
-        {/* Search + New chat buttons */}
-        <div style={{ padding: '12px 12px 8px', display: 'flex', flexDirection: 'column', gap: 2 }}>
-          <button
-            onClick={() => setSearch(search ? '' : ' ')}
-            style={sideBtnStyle}
-            onMouseOver={e => e.currentTarget.style.background = 'rgba(128,128,128,.1)'}
-            onMouseOut={e => e.currentTarget.style.background = 'transparent'}
-          >
-            <Search size={16} /> Buscar
-          </button>
-          <Link href="/" style={{ ...sideBtnStyle, textDecoration: 'none' }}
-            onMouseOver={e => e.currentTarget.style.background = 'rgba(128,128,128,.1)'}
-            onMouseOut={e => e.currentTarget.style.background = 'transparent'}
-          >
-            <PenSquare size={16} /> Nueva clasificación
-          </Link>
-        </div>
-
-        {/* Search input (expandable) */}
-        {search !== '' && (
-          <div style={{ padding: '0 12px 8px' }}>
-            <input
-              autoFocus
-              value={search === ' ' ? '' : search}
-              onChange={e => setSearch(e.target.value || ' ')}
-              onBlur={() => { if (search.trim() === '') setSearch('') }}
-              placeholder="Buscar por producto o subpartida..."
-              style={{
-                width: '100%', background: 'var(--card)', border: '1px solid var(--border)',
-                borderRadius: 10, padding: '8px 12px', outline: 'none',
-                color: 'var(--text)', fontFamily: 'inherit', fontSize: '.8rem',
-              }}
-            />
-          </div>
-        )}
-
-        {/* History list */}
-        <div style={{ flex: 1, overflowY: 'auto', padding: '0 8px' }}>
-          {groups.map((group) => (
-            <div key={group.label} style={{ marginBottom: 6 }}>
-              <div style={{
-                fontSize: '.68rem', fontWeight: 600, color: 'var(--text-3)',
-                padding: '10px 8px 4px', textTransform: 'uppercase', letterSpacing: '.04em',
-              }}>
-                {group.label}
-              </div>
-              {group.items.map((r) => (
-                <Link
-                  key={r.id}
-                  href={`/c/${r.id}`}
-                  style={{
-                    display: 'block', padding: '8px 10px', borderRadius: 8,
-                    textDecoration: 'none', fontSize: '.82rem', lineHeight: 1.4,
-                    color: activeId === r.id ? 'var(--text)' : 'var(--text-2)',
-                    background: activeId === r.id ? 'rgba(128,128,128,.12)' : 'transparent',
-                    transition: 'background .15s',
-                    overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-                  }}
-                  onMouseOver={(e) => { if (activeId !== r.id) e.currentTarget.style.background = 'rgba(128,128,128,.06)' }}
-                  onMouseOut={(e) => { if (activeId !== r.id) e.currentTarget.style.background = 'transparent' }}
-                >
-                  {getTitle(r)}
-                </Link>
-              ))}
-            </div>
-          ))}
-
-          {records.length === 0 && (
-            <div style={{ textAlign: 'center', padding: '32px 16px', color: 'var(--text-3)', fontSize: '.82rem' }}>
-              No hay clasificaciones aún
-            </div>
-          )}
-        </div>
-
-        {/* Bottom nav */}
-        <div style={{ borderTop: '1px solid var(--border)', padding: 8 }}>
-          <Link href="/historial" style={bottomLinkStyle}>
-            <Clock size={14} /> Historial completo
-          </Link>
-          <Link href="/importar" style={bottomLinkStyle}>
-            <Database size={14} /> Importar BD
-          </Link>
-        </div>
+        {sidebarContent}
       </div>
-
-      {/* Spacer to push main content */}
-      <style>{`
-        :root { --sidebar-w: 280px; }
-        @media (max-width: 768px) { :root { --sidebar-w: 0px; } }
-      `}</style>
+      <style>{`:root { --sidebar-w: 280px; }`}</style>
     </>
   )
 }
@@ -205,8 +293,14 @@ const sideBtnStyle: React.CSSProperties = {
   padding: '10px 12px', borderRadius: 10,
   background: 'transparent', border: 'none', cursor: 'pointer',
   color: 'var(--text)', fontFamily: 'inherit', fontSize: '.88rem',
-  fontWeight: 400, transition: 'background .15s', width: '100%',
-  textAlign: 'left',
+  fontWeight: 400, transition: 'background .15s', width: '100%', textAlign: 'left',
+}
+
+const menuItemStyle: React.CSSProperties = {
+  display: 'flex', alignItems: 'center', gap: 10, width: '100%',
+  padding: '8px 10px', borderRadius: 7, background: 'transparent',
+  border: 'none', cursor: 'pointer', color: 'var(--text)',
+  fontFamily: 'inherit', fontSize: '.82rem', transition: 'background .15s', textAlign: 'left',
 }
 
 const bottomLinkStyle: React.CSSProperties = {
