@@ -47,6 +47,7 @@ from config import (
 from database import (
     actualizar_estado,
     buscar_conocimiento,
+    buscar_decreto_multicaracteristica,
     buscar_decreto_semantico,
     buscar_lecciones,
     calcular_costo_total,
@@ -386,11 +387,8 @@ def clasificar():
             )
             investigacion += "\n".join(verificacion_lines)
 
-        # Búsqueda semántica RAG: ficha técnica + subpartidas del investigador
-        search_query = ficha_tecnica
-        if subpartidas_inv:
-            search_query += " subpartidas: " + " ".join(subpartidas_inv)
-        decreto_ctx = buscar_decreto_semantico(search_query, top_k=15)
+        # Búsqueda RAG multi-característica: descompone la ficha y cruza resultados
+        decreto_ctx = buscar_decreto_multicaracteristica(ficha_tecnica, top_k=15)
 
         # Extraer TODAS las subpartidas mencionadas en el RAG para expandir partidas hermanas
         subpartidas_rag = re.findall(r'\d{4}\.\d{2}', decreto_ctx)

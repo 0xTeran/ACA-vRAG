@@ -322,6 +322,180 @@ def buscar_arancel_por_descripcion(query: str, limit: int = 20) -> list[dict]:
         return []
 
 
+def _get_embed_client():
+    """Retorna cliente de embeddings (singleton-like)."""
+    import os as _os
+    from openai import OpenAI as _OpenAI
+
+    api_key = _os.environ.get("OPENAI_API_KEY") or _os.environ.get("OPENROUTER_API_KEY", "")
+    base_url = None if _os.environ.get("OPENAI_API_KEY") else "https://openrouter.ai/api/v1"
+    return _OpenAI(api_key=api_key, base_url=base_url) if base_url else _OpenAI(api_key=api_key)
+
+
+def _embed_text(text: str) -> list[float]:
+    """Genera embedding para un texto."""
+    client = _get_embed_client()
+    response = client.embeddings.create(model="text-embedding-3-small", input=text[:4000])
+    return response.data[0].embedding
+
+
+def _embed_batch(texts: list[str]) -> list[list[float]]:
+    """Genera embeddings para múltiples textos en una sola llamada."""
+    client = _get_embed_client()
+    response = client.embeddings.create(
+        model="text-embedding-3-small",
+        input=[t[:4000] for t in texts],
+    )
+    return [item.embedding for item in response.data]
+
+
+def _buscar_chunks_por_embedding(embedding: list[float], top_k: int = 8, threshold: float = 0.25) -> list[dict]:
+    """Busca chunks similares dado un embedding."""
+    client = get_client()
+    result = client.rpc("buscar_decreto", {
+        "query_embedding": embedding,
+        "match_count": top_k,
+        "match_threshold": threshold,
+    }).execute()
+    return result.data or []
+
+
+def extraer_caracteristicas(ficha_tecnica: str) -> list[dict]:
+    """Extrae características clave de una ficha técnica usando IA.
+
+    Retorna lista de dicts con {tipo, valor, query} para búsqueda RAG.
+    """
+    from config import MODEL, OPENROUTER_API_KEY, OPENROUTER_BASE_URL
+    from openai import OpenAI
+
+    client = OpenAI(api_key=OPENROUTER_API_KEY, base_url=OPENROUTER_BASE_URL)
+
+    response = client.chat.completions.create(
+        model="google/gemini-2.0-flash-001",  # Modelo rápido y barato para extracción
+        max_tokens=800,
+        messages=[
+            {
+                "role": "system",
+                "content": (
+                    "Extrae las características clave de esta ficha técnica para clasificación arancelaria. "
+                    "Responde SOLO en JSON array. Cada elemento: "
+                    '{\"tipo\": \"material|estructura|funcion|uso|acabado|composicion|forma|peso|origen\", '
+                    '\"valor\": \"descripción corta\", '
+                    '\"query\": \"texto optimizado para buscar en el arancel de aduanas\"}. '
+                    "Máximo 6 características. La query debe usar vocabulario arancelario."
+                ),
+            },
+            {"role": "user", "content": ficha_tecnica[:3000]},
+        ],
+    )
+
+    import json as _json
+    try:
+        raw = response.choices[0].message.content.strip()
+        if "```" in raw:
+            raw = raw.split("```")[1].replace("json", "").strip()
+        # Limpiar posibles caracteres extra
+        start = raw.find("[")
+        end = raw.rfind("]") + 1
+        if start >= 0 and end > start:
+            raw = raw[start:end]
+        return _json.loads(raw)
+    except Exception:
+        return []
+
+
+def buscar_decreto_multicaracteristica(ficha_tecnica: str, top_k: int = 15) -> str:
+    """Búsqueda RAG multi-característica.
+
+    1. Extrae características de la ficha técnica (material, uso, forma, etc.)
+    2. Hace búsqueda semántica por cada característica
+    3. Cruza resultados: partidas que aparecen en múltiples búsquedas = más relevantes
+    4. Retorna contexto ordenado por frecuencia de aparición
+    """
+    # Extraer características
+    caracteristicas = extraer_caracteristicas(ficha_tecnica)
+
+    if not caracteristicas:
+        # Fallback a búsqueda simple
+        return buscar_decreto_semantico(ficha_tecnica, top_k)
+
+    # Generar embeddings en batch (1 sola llamada API)
+    queries = [c.get("query", c.get("valor", "")) for c in caracteristicas]
+    # Agregar la ficha completa como query adicional
+    queries.append(ficha_tecnica[:2000])
+
+    try:
+        embeddings = _embed_batch(queries)
+    except Exception:
+        return buscar_decreto_semantico(ficha_tecnica, top_k)
+
+    # Buscar chunks por cada característica
+    all_chunks: dict[str, dict] = {}  # key = chunk_id → {chunk, score, matches}
+
+    for idx, embedding in enumerate(embeddings):
+        label = caracteristicas[idx]["tipo"] if idx < len(caracteristicas) else "ficha_completa"
+        chunks = _buscar_chunks_por_embedding(embedding, top_k=8, threshold=0.25)
+
+        for chunk in chunks:
+            chunk_id = str(chunk.get("id", ""))
+            sim = chunk.get("similarity", 0)
+
+            if chunk_id in all_chunks:
+                all_chunks[chunk_id]["matches"].append(label)
+                all_chunks[chunk_id]["total_score"] += sim
+                all_chunks[chunk_id]["max_score"] = max(all_chunks[chunk_id]["max_score"], sim)
+            else:
+                all_chunks[chunk_id] = {
+                    "chunk": chunk,
+                    "matches": [label],
+                    "total_score": sim,
+                    "max_score": sim,
+                }
+
+    if not all_chunks:
+        return buscar_decreto_semantico(ficha_tecnica, top_k)
+
+    # Ordenar por: número de matches (intersección) > score total
+    ranked = sorted(
+        all_chunks.values(),
+        key=lambda x: (len(x["matches"]), x["total_score"]),
+        reverse=True,
+    )[:top_k]
+
+    # Formatear contexto
+    parts = [
+        "## CONTEXTO DEL DECRETO 1881/2021 (búsqueda multi-característica):\n",
+        "### Características extraídas de la ficha técnica:",
+    ]
+    for c in caracteristicas:
+        parts.append(f"  - **{c.get('tipo', '?')}**: {c.get('valor', '?')}")
+    parts.append("")
+
+    for i, item in enumerate(ranked, 1):
+        chunk = item["chunk"]
+        n_matches = len(item["matches"])
+        max_sim = round(item["max_score"] * 100, 1)
+        match_labels = ", ".join(sorted(set(item["matches"])))
+
+        tipo = chunk.get("tipo", "")
+        cap = chunk.get("capitulo", "")
+        meta = chunk.get("metadata", {}) or {}
+        partida = meta.get("partida", "") if isinstance(meta, dict) else ""
+
+        if tipo == "notas_capitulo":
+            header = f"Notas Cap.{cap}"
+        elif tipo == "partida":
+            header = f"Partida {partida} Cap.{cap}"
+        else:
+            header = tipo
+
+        parts.append(f"### [{i}] {header} — coincide con {n_matches} características ({match_labels}) — sim: {max_sim}%")
+        parts.append(chunk.get("contenido", ""))
+        parts.append("")
+
+    return "\n".join(parts)
+
+
 def buscar_decreto_semantico(ficha_tecnica: str, top_k: int = 12) -> str:
     """Búsqueda semántica sobre el Decreto 1881 usando embeddings.
 
