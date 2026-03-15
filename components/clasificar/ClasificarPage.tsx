@@ -247,6 +247,11 @@ export function ClasificarPage({ sessionId }: Props) {
     setMessages((prev) => [...prev, { type: 'loading', steps: initialSteps }])
     setLoading(true)
 
+    // Change URL immediately (like ChatGPT) - will update with real ID after response
+    const tempId = crypto.randomUUID()
+    window.history.replaceState(null, '', `/c/${tempId}`)
+    document.title = 'ACA — Clasificando...'
+
     clearTimers()
     timers.current.push(setTimeout(() => {
       updateLoadingSteps((steps) => steps.map((s, i) =>
@@ -301,11 +306,10 @@ export function ClasificarPage({ sessionId }: Props) {
       })
       setChatHistory([])
 
-      // Update URL to /c/<id>
+      // Update URL with real session ID
       if (newId) {
         const subpartida = d.clasificacion_raw?.match(/\d{4}\.\d{2}\.\d{2}\.\d{2}/)?.[0] ?? ''
-        // Replace URL without triggering navigation/re-render
-        window.history.replaceState(window.history.state, '', `/c/${newId}`)
+        window.history.replaceState(null, '', `/c/${newId}`)
         document.title = `ACA — ${subpartida || 'Clasificación'}`
       }
 
@@ -314,6 +318,8 @@ export function ClasificarPage({ sessionId }: Props) {
       clearTimers()
       setMessages((prev) => prev.filter((m) => m.type !== 'loading'))
       setMessages((prev) => [...prev, { type: 'error', text: 'Error de conexión. Intenta de nuevo.' }])
+      // Revert URL on error
+      window.history.replaceState(null, '', '/')
     } finally {
       setLoading(false)
     }
