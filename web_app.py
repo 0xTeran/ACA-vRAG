@@ -47,6 +47,7 @@ from config import (
 from database import (
     actualizar_estado,
     buscar_conocimiento,
+    buscar_decreto_semantico,
     buscar_lecciones,
     calcular_costo_total,
     crear_verificacion,
@@ -385,22 +386,22 @@ def clasificar():
             )
             investigacion += "\n".join(verificacion_lines)
 
-        # Construir contexto del arancel desde BD estructurada
-        arancel_ctx = obtener_contexto_arancel_estructurado(ficha_tecnica, subpartidas_inv)
+        # Búsqueda semántica RAG: ficha técnica + subpartidas del investigador
+        search_query = ficha_tecnica
+        if subpartidas_inv:
+            search_query += " subpartidas: " + " ".join(subpartidas_inv)
+        decreto_ctx = buscar_decreto_semantico(search_query, top_k=15)
 
-        # Obtener notas de capítulo desde BD (no del PDF crudo)
-        capitulos_relevantes = list(set(
-            sub[:2] for sub in subpartidas_inv if len(sub) >= 2
-        ))
-        notas_ctx = obtener_notas_para_clasificacion(capitulos_relevantes)
+        # Complementar con datos exactos de las subpartidas del investigador
+        arancel_ctx = obtener_contexto_arancel_estructurado(ficha_tecnica, subpartidas_inv)
 
         # Conocimiento previo (precedentes + lecciones)
         knowledge_ctx = _build_knowledge_context(ficha_tecnica)
 
-        # Contexto completo: conocimiento + arancel BD + notas BD
-        clasificador_contexto = arancel_ctx
-        if notas_ctx:
-            clasificador_contexto += "\n\n" + notas_ctx
+        # Contexto completo: RAG + datos exactos BD + conocimiento
+        clasificador_contexto = decreto_ctx
+        if arancel_ctx:
+            clasificador_contexto += "\n\n" + arancel_ctx
         if knowledge_ctx:
             clasificador_contexto = knowledge_ctx + "\n\n" + clasificador_contexto
 

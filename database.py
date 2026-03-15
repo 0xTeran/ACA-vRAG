@@ -322,6 +322,59 @@ def buscar_arancel_por_descripcion(query: str, limit: int = 20) -> list[dict]:
         return []
 
 
+def buscar_decreto_semantico(ficha_tecnica: str, top_k: int = 12) -> str:
+    """Búsqueda semántica sobre el Decreto 1881 usando embeddings.
+
+    Convierte la ficha técnica a embedding y busca los chunks más similares.
+    Retorna el contexto formateado listo para inyectar a los agentes.
+    """
+    import os as _os
+    from openai import OpenAI as _OpenAI
+
+    api_key = _os.environ.get("OPENAI_API_KEY") or _os.environ.get("OPENROUTER_API_KEY", "")
+    base_url = None if _os.environ.get("OPENAI_API_KEY") else "https://openrouter.ai/api/v1"
+
+    embed_client = _OpenAI(api_key=api_key, base_url=base_url) if base_url else _OpenAI(api_key=api_key)
+
+    response = embed_client.embeddings.create(
+        model="text-embedding-3-small",
+        input=ficha_tecnica[:4000],
+    )
+    query_embedding = response.data[0].embedding
+
+    client = get_client()
+    result = client.rpc("buscar_decreto", {
+        "query_embedding": query_embedding,
+        "match_count": top_k,
+        "match_threshold": 0.25,
+    }).execute()
+
+    chunks = result.data or []
+    if not chunks:
+        return ""
+
+    parts = ["## CONTEXTO DEL DECRETO 1881/2021 (búsqueda semántica):\n"]
+
+    for i, chunk in enumerate(chunks, 1):
+        sim = round(chunk.get("similarity", 0) * 100, 1)
+        tipo = chunk.get("tipo", "")
+        cap = chunk.get("capitulo", "")
+        meta = chunk.get("metadata", {}) or {}
+        partida = meta.get("partida", "") if isinstance(meta, dict) else ""
+
+        if tipo == "notas_capitulo":
+            parts.append(f"### [{i}] Notas Cap.{cap} (relevancia: {sim}%)")
+        elif tipo == "partida":
+            parts.append(f"### [{i}] Partida {partida} Cap.{cap} (relevancia: {sim}%)")
+        else:
+            parts.append(f"### [{i}] {tipo} (relevancia: {sim}%)")
+
+        parts.append(chunk.get("contenido", ""))
+        parts.append("")
+
+    return "\n".join(parts)
+
+
 def obtener_notas_capitulo(capitulo: str) -> list[dict]:
     """Obtiene notas de un capítulo específico."""
     client = get_client()
