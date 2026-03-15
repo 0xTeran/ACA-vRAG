@@ -50,6 +50,7 @@ from database import (
     buscar_decreto_multicaracteristica,
     buscar_decreto_semantico,
     buscar_lecciones,
+    buscar_resoluciones_relevantes,
     calcular_costo_total,
     crear_verificacion,
     eliminar_leccion,
@@ -397,13 +398,18 @@ def clasificar():
         # Complementar con TODAS las subpartidas hermanas de cada partida encontrada
         arancel_ctx = obtener_contexto_arancel_estructurado(ficha_tecnica, todas_subpartidas)
 
+        # Resoluciones DIAN reales como ejemplo de metodología interpretativa
+        resoluciones_ctx = buscar_resoluciones_relevantes(ficha_tecnica, top_k=5)
+
         # Conocimiento previo (precedentes + lecciones)
         knowledge_ctx = _build_knowledge_context(ficha_tecnica)
 
-        # Contexto completo: RAG + datos exactos BD + conocimiento
+        # Contexto completo: resoluciones + RAG + datos exactos BD + conocimiento
         clasificador_contexto = decreto_ctx
         if arancel_ctx:
             clasificador_contexto += "\n\n" + arancel_ctx
+        if resoluciones_ctx:
+            clasificador_contexto += "\n\n" + resoluciones_ctx
         if knowledge_ctx:
             clasificador_contexto = knowledge_ctx + "\n\n" + clasificador_contexto
 
@@ -449,6 +455,8 @@ def clasificar():
                 lines_l.append(f"- {l['regla']}")
             validador_ctx += "\n".join(lines_l)
 
+        if resoluciones_ctx:
+            validador_ctx += "\n\n" + resoluciones_ctx
         if arancel_ctx:
             validador_ctx += "\n\n" + arancel_ctx
 

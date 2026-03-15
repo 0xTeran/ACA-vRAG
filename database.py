@@ -404,6 +404,48 @@ def extraer_caracteristicas(ficha_tecnica: str) -> list[dict]:
         return []
 
 
+def buscar_resoluciones_relevantes(ficha_tecnica: str, top_k: int = 5) -> str:
+    """Busca resoluciones DIAN similares al producto para aprender metodología.
+
+    No busca el producto exacto — busca resoluciones donde la DIAN clasificó
+    productos similares para entender cómo razona e interpreta las reglas.
+    """
+    embedding = _embed_text(ficha_tecnica)
+    client = get_client()
+
+    result = client.rpc("buscar_resoluciones_similares", {
+        "query_embedding": embedding,
+        "match_count": top_k,
+        "match_threshold": 0.30,
+    }).execute()
+
+    resoluciones = result.data or []
+    if not resoluciones:
+        return ""
+
+    parts = [
+        "## PRECEDENTES REALES DE LA DIAN (resoluciones oficiales indexadas):",
+        "⚠️ Estas resoluciones muestran cómo la DIAN clasifica productos SIMILARES.",
+        "Estudia su METODOLOGÍA de razonamiento, no solo la subpartida asignada.\n",
+    ]
+
+    for i, r in enumerate(resoluciones, 1):
+        sim = round(r.get("similarity", 0) * 100, 1)
+        subs = ", ".join(r.get("subpartidas", [])[:3]) or "sin subpartida"
+        parts.append(
+            f"### [{i}] Resolución {r.get('numero', '?')} ({r.get('fecha', '?')}) — sim: {sim}%"
+        )
+        parts.append(f"**Subpartidas asignadas:** {subs}")
+        if r.get("producto"):
+            parts.append(f"**Producto:** {r['producto'][:200]}")
+        if r.get("resumen"):
+            parts.append(f"**Resumen:** {r['resumen']}")
+        parts.append(f"**URL:** {r.get('url', '')}")
+        parts.append("")
+
+    return "\n".join(parts)
+
+
 def buscar_decreto_multicaracteristica(ficha_tecnica: str, top_k: int = 15) -> str:
     """Búsqueda RAG multi-característica.
 
