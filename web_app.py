@@ -411,27 +411,44 @@ def clasificar():
         res_cls = clasificar_producto(ficha_tecnica, clasificador_contexto, investigacion, model=selected_model)
         clasificacion = res_cls["clasificacion_raw"]
 
-        # Paso 3: Validador - búsqueda RAG independiente + partida completa
+        # Paso 3: Validador - RAG independiente + hermanas completas + lecciones
         sub_propuesta = re.search(r'\d{4}\.\d{2}\.\d{2}\.\d{2}', clasificacion)
+        sub_descartadas = re.findall(r'\d{4}\.\d{2}\.\d{2}\.\d{2}', clasificacion)
+
+        # RAG semántica independiente con la ficha + subpartida propuesta
         val_search = ficha_tecnica
-        val_subpartidas = list(todas_subpartidas)  # Heredar las del clasificador
         if sub_propuesta:
             val_search += f" subpartida {sub_propuesta.group(0)} partida {sub_propuesta.group(0)[:5]}"
-            val_subpartidas.append(sub_propuesta.group(0)[:7])
-
         validador_ctx = buscar_decreto_semantico(val_search, top_k=10)
-        # Traer TODAS las subpartidas hermanas de la partida propuesta
+
+        # Traer hermanas de TODAS las partidas mencionadas en la clasificación
         from database import buscar_arancel_por_partida
-        if sub_propuesta:
-            partida_propuesta = sub_propuesta.group(0)[:5]
-            hermanas = buscar_arancel_por_partida(partida_propuesta)
+        partidas_vistas_val: set[str] = set()
+        for sub in sub_descartadas:
+            partida = sub[:5]
+            if partida in partidas_vistas_val:
+                continue
+            partidas_vistas_val.add(partida)
+            hermanas = buscar_arancel_por_partida(partida)
             if hermanas:
-                lines = [f"\n\n## TODAS las subpartidas de la partida {partida_propuesta} (para verificar alternativas):"]
+                lines = [f"\n\n## ANÁLISIS HORIZONTAL — Todas las subpartidas de partida {partida}:"]
+                lines.append("⚠️ OBLIGATORIO: Evaluar cuál es la MÁS ESPECÍFICA para este producto.")
                 for h in hermanas:
-                    marker = " ← PROPUESTA" if h['codigo'] == sub_propuesta.group(0) else ""
+                    marker = ""
+                    if sub_propuesta and h['codigo'] == sub_propuesta.group(0):
+                        marker = " ← PROPUESTA"
                     grv = f" | Gravamen: {h.get('gravamen', '?')}%" if h.get('gravamen') is not None else ""
                     lines.append(f"  {h['codigo']} — {h['descripcion']}{grv}{marker}")
                 validador_ctx += "\n".join(lines)
+
+        # Lecciones del validador
+        lecciones_val = buscar_lecciones(ficha_tecnica, agente="validador", limit=5)
+        if lecciones_val:
+            lines_l = ["\n\n## LECCIONES APRENDIDAS PARA VALIDACIÓN:"]
+            for l in lecciones_val:
+                lines_l.append(f"- {l['regla']}")
+            validador_ctx += "\n".join(lines_l)
+
         if arancel_ctx:
             validador_ctx += "\n\n" + arancel_ctx
 
