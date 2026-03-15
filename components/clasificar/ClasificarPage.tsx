@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useRef, useCallback, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
 import { Send, Paperclip, X, BookmarkPlus } from 'lucide-react'
 import { Logo } from '@/components/ui/Logo'
 import { LoadingCard } from './LoadingCard'
@@ -301,15 +302,10 @@ export function ClasificarPage({ sessionId }: Props) {
       setChatHistory([])
 
       // Update URL to /c/<id>
-      console.log('[ACA] Session ID received:', newId)
       if (newId) {
         const subpartida = d.clasificacion_raw?.match(/\d{4}\.\d{2}\.\d{2}\.\d{2}/)?.[0] ?? ''
-        try {
-          window.history.pushState({ sessionId: newId }, '', `/c/${newId}`)
-          console.log('[ACA] URL updated to /c/' + newId)
-        } catch (e) {
-          console.error('[ACA] pushState failed:', e)
-        }
+        // Replace URL without triggering navigation/re-render
+        window.history.replaceState(window.history.state, '', `/c/${newId}`)
         document.title = `ACA — ${subpartida || 'Clasificación'}`
       }
 
