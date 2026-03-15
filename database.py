@@ -334,6 +334,11 @@ def obtener_notas_para_clasificacion(capitulos: list[str]) -> str:
             }.get(nota["tipo"], f"Nota Cap. {cap_str}")
             parts.append(f"\n### {label}:\n{nota['contenido']}")
 
+    # Doctrina concordante (siempre incluir)
+    doctrina = client.table("notas_arancel").select("referencia, contenido").eq("tipo", "doctrina_concordante").execute()
+    for d in (doctrina.data or []):
+        parts.append(f"\n### Doctrina Concordante — {d['referencia']}:\n{d['contenido']}")
+
     return "\n\n".join(parts)
 
 
