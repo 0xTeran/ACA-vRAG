@@ -339,6 +339,11 @@ def obtener_notas_para_clasificacion(capitulos: list[str]) -> str:
     for d in (doctrina.data or []):
         parts.append(f"\n### Doctrina Concordante — {d['referencia']}:\n{d['contenido']}")
 
+    # Abreviaturas y símbolos (siempre incluir)
+    abrev = client.table("notas_arancel").select("contenido").eq("tipo", "abreviaturas").execute()
+    if abrev.data:
+        parts.append(f"\n### Abreviaturas y Símbolos del Arancel:\n{abrev.data[0]['contenido']}")
+
     return "\n\n".join(parts)
 
 
