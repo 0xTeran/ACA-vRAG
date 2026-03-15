@@ -349,6 +349,8 @@ def clasificar():
         costos = calcular_costo_total([res_inv, res_cls, res_val])
 
         # Guardar en Supabase
+        # anon_id puede venir del FormData (enviado por Next.js) o de la cookie
+        form_anon_id = request.form.get("anon_id", "") or anon_id
         registro = guardar_clasificacion(
             ficha_tecnica=ficha_tecnica,
             fuente_tipo=input_type,
@@ -359,6 +361,7 @@ def clasificar():
             costos=costos,
             tiempo_segundos=elapsed,
             fuentes=res_inv.get("fuentes", []),
+            anon_id=form_anon_id,
         )
 
         # Incrementar contador anónimo si aplica

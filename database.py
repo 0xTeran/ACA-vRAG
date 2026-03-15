@@ -67,6 +67,7 @@ def guardar_clasificacion(
     costos: dict,
     tiempo_segundos: float,
     fuentes: list[dict],
+    anon_id: str = "",
 ) -> dict:
     """Guarda una clasificación completa en Supabase."""
     subpartida = extraer_subpartida(clasificacion)
@@ -94,6 +95,8 @@ def guardar_clasificacion(
         "tiempo_segundos": tiempo_segundos,
         "fuentes": fuentes,
     }
+    if anon_id:
+        data["anon_id"] = anon_id
 
     client = get_client()
     result = client.table("clasificaciones").insert(data).execute()
