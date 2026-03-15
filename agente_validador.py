@@ -81,6 +81,7 @@ def validar_clasificacion(
     clasificacion_propuesta: str,
     contexto_arancel: str,
     arancel_completo: str = "",
+    model: str = "",
 ) -> dict:
     """Valida una clasificación arancelaria propuesta.
 
@@ -193,8 +194,9 @@ Responde en formato estructurado:
 ### NIVEL DE CONFIANZA: [Alto/Medio/Bajo]
 """
 
+    use_model = model or MODEL
     response = client.chat.completions.create(
-        model=MODEL,
+        model=use_model,
         max_tokens=4096,
         messages=[
             {"role": "system", "content": _get_prompt()},
@@ -209,7 +211,7 @@ Responde en formato estructurado:
         "validacion_raw": result_text,
         "subpartida_existe": verificacion["existe"],
         "alternativas": verificacion.get("alternativas", []),
-        "modelo": MODEL,
+        "modelo": use_model,
         "tokens_input": usage.prompt_tokens if usage else 0,
         "tokens_output": usage.completion_tokens if usage else 0,
     }

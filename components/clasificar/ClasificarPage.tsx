@@ -40,6 +40,9 @@ export function ClasificarPage({ sessionId }: Props) {
     ficha_tecnica: string; clasificacion: string; validacion: string; investigacion: string
   }>({ ficha_tecnica: '', clasificacion: '', validacion: '', investigacion: '' })
 
+  const [selectedModel, setSelectedModel] = useState('')
+  const [models, setModels] = useState<{id: string; nombre: string; provider: string; es_default: boolean}[]>([])
+
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const fileRef = useRef<HTMLInputElement>(null)
   const bottomRef = useRef<HTMLDivElement>(null)
@@ -51,6 +54,16 @@ export function ClasificarPage({ sessionId }: Props) {
   const hasResult = currentSessionId !== ''
   const isEmpty = messages.length === 0
   const [dragging, setDragging] = useState(false)
+
+  // Load available models
+  useEffect(() => {
+    fetch('/api/modelos').then(r => r.json()).then(d => {
+      const list = d.modelos ?? []
+      setModels(list)
+      const def = list.find((m: {es_default: boolean}) => m.es_default)
+      if (def) setSelectedModel(def.id)
+    }).catch(() => {})
+  }, [])
   const [savedLesson, setSavedLesson] = useState<number | null>(null)
 
   const saveAsLesson = async (raw: string, idx: number) => {
@@ -184,6 +197,7 @@ export function ClasificarPage({ sessionId }: Props) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           message: msg,
+          model: selectedModel,
           clasificacion_id: currentSessionId,
           ficha_tecnica: chatContext.ficha_tecnica,
           clasificacion: chatContext.clasificacion,
@@ -271,6 +285,7 @@ export function ClasificarPage({ sessionId }: Props) {
 
     try {
       const fd = new FormData()
+      if (selectedModel) fd.append('model', selectedModel)
       if (file) {
         fd.append('input_type', 'archivo')
         fd.append('ficha_archivo', file)
@@ -549,8 +564,28 @@ export function ClasificarPage({ sessionId }: Props) {
             </button>
           </div>
         </div>
-        <div style={{ textAlign: 'center', fontSize: '.7rem', color: 'var(--text-3)', marginTop: 6 }}>
-          {hasResult ? 'Sesión activa — haz preguntas de seguimiento' : 'ACA puede cometer errores. Verifica con un agente aduanero.'}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 6, padding: '0 4px' }}>
+          <div style={{ fontSize: '.7rem', color: 'var(--text-3)' }}>
+            {hasResult ? 'Sesión activa — haz preguntas de seguimiento' : 'ACA puede cometer errores. Verifica con un agente aduanero.'}
+          </div>
+          {models.length > 0 && (
+            <select
+              value={selectedModel}
+              onChange={(e) => setSelectedModel(e.target.value)}
+              style={{
+                background: 'none', border: '1px solid var(--border)',
+                borderRadius: 8, padding: '2px 8px', fontSize: '.7rem',
+                color: 'var(--text-3)', fontFamily: 'inherit', cursor: 'pointer',
+                outline: 'none', maxWidth: 180,
+              }}
+            >
+              {models.map(m => (
+                <option key={m.id} value={m.id} style={{ background: 'var(--bg)', color: 'var(--text)' }}>
+                  {m.nombre}
+                </option>
+              ))}
+            </select>
+          )}
         </div>
       </div>
     </div>

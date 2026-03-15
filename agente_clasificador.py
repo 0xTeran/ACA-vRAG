@@ -25,6 +25,7 @@ def clasificar_producto(
     ficha_tecnica: str,
     contexto_arancel: str,
     investigacion: str = "",
+    model: str = "",
 ) -> dict:
     """Clasifica un producto según su ficha técnica.
 
@@ -105,8 +106,9 @@ Responde en formato estructurado:
 **Razón:** [Por qué este nivel de confianza]
 """
 
+    use_model = model or MODEL
     response = client.chat.completions.create(
-        model=MODEL,
+        model=use_model,
         max_tokens=4096,
         messages=[
             {"role": "system", "content": _get_prompt()},
@@ -119,7 +121,7 @@ Responde en formato estructurado:
 
     return {
         "clasificacion_raw": result_text,
-        "modelo": MODEL,
+        "modelo": use_model,
         "tokens_input": usage.prompt_tokens if usage else 0,
         "tokens_output": usage.completion_tokens if usage else 0,
     }

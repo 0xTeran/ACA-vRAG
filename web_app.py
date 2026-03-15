@@ -63,6 +63,7 @@ from database import (
     increment_anon_count,
     listar_clasificaciones,
     listar_lecciones,
+    listar_modelos,
     obtener_chat_mensajes,
     obtener_clasificacion,
     obtener_contexto_arancel_estructurado,
@@ -349,8 +350,11 @@ def clasificar():
         if not ficha_tecnica.strip():
             return jsonify({"error": "No se pudo extraer texto del archivo."}), 400
 
+        # Modelo elegido por el usuario (o default)
+        selected_model = request.form.get("model", "") or MODEL
+
         # Paso 1: Investigador
-        res_inv = investigar_producto(ficha_tecnica)
+        res_inv = investigar_producto(ficha_tecnica, model=selected_model)
         investigacion = res_inv["investigacion_raw"]
 
         # Paso 1.5: Verificar subpartidas de la investigación contra BD real
@@ -401,11 +405,11 @@ def clasificar():
             clasificador_contexto = knowledge_ctx + "\n\n" + clasificador_contexto
 
         # Paso 2: Clasificador
-        res_cls = clasificar_producto(ficha_tecnica, clasificador_contexto, investigacion)
+        res_cls = clasificar_producto(ficha_tecnica, clasificador_contexto, investigacion, model=selected_model)
         clasificacion = res_cls["clasificacion_raw"]
 
         # Paso 3: Validador (con BD estructurada para verificar existencia)
-        res_val = validar_clasificacion(ficha_tecnica, clasificacion, arancel_ctx, arancel_completo=ARANCEL_TEXT)
+        res_val = validar_clasificacion(ficha_tecnica, clasificacion, arancel_ctx, arancel_completo=ARANCEL_TEXT, model=selected_model)
         validacion = res_val["validacion_raw"]
 
         elapsed = round(time.time() - start_time, 2)
@@ -626,8 +630,9 @@ def chat():
 
         messages.append({"role": "user", "content": enriched_message})
 
+        chat_model = data.get("model", "") or MODEL
         client = OpenAI(api_key=OPENROUTER_API_KEY, base_url=OPENROUTER_BASE_URL)
-        response = client.chat.completions.create(model=MODEL, max_tokens=2048, messages=messages)
+        response = client.chat.completions.create(model=chat_model, max_tokens=2048, messages=messages)
 
         reply = response.choices[0].message.content
 
@@ -641,6 +646,13 @@ def chat():
     except Exception as e:
         traceback.print_exc()
         return jsonify({"error": str(e)}), 500
+
+
+# ── Modelos ──
+
+@app.route("/modelos")
+def get_modelos():
+    return jsonify({"modelos": listar_modelos()})
 
 
 # ── Lecciones ──

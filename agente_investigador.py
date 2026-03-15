@@ -85,7 +85,7 @@ def _search_perplexity(query: str) -> str:
         return f"[Error en búsqueda Perplexity: {e}]"
 
 
-def investigar_producto(ficha_tecnica: str) -> dict:
+def investigar_producto(ficha_tecnica: str, model: str = "") -> dict:
     """Investiga resoluciones y fuentes DIAN para un producto ANTES de clasificarlo.
 
     Args:
@@ -163,8 +163,9 @@ Esta investigación será usada por el agente clasificador como insumo para toma
 la mejor decisión de clasificación arancelaria.
 """
 
+    use_model = model or MODEL
     response = client.chat.completions.create(
-        model=MODEL,
+        model=use_model,
         max_tokens=4096,
         messages=[
             {"role": "system", "content": _get_prompt()},
@@ -189,7 +190,7 @@ la mejor decisión de clasificación arancelaria.
     return {
         "investigacion_raw": result_text,
         "fuentes": fuentes[:20],
-        "modelo": MODEL,
+        "modelo": use_model,
         "tokens_input": usage.prompt_tokens if usage else 0,
         "tokens_output": usage.completion_tokens if usage else 0,
     }

@@ -11,13 +11,46 @@ from supabase import create_client
 
 from config import SUPABASE_KEY, SUPABASE_URL
 
-# Precios por millón de tokens (USD) - OpenRouter
-PRICING = {
-    "anthropic/claude-sonnet-4": {"input": 3.0, "output": 15.0},
-    "perplexity/sonar-pro": {"input": 3.0, "output": 15.0},
-    "google/gemini-2.0-flash-001": {"input": 0.1, "output": 0.4},
-}
 USD_TO_COP = 4200  # Tasa aproximada
+
+# Cache de precios de modelos
+_pricing_cache: dict | None = None
+
+
+def _get_pricing() -> dict:
+    """Obtiene precios de modelos desde BD (con cache)."""
+    global _pricing_cache
+    if _pricing_cache:
+        return _pricing_cache
+    try:
+        client = get_client()
+        result = client.table("modelos").select("id, precio_input, precio_output").execute()
+        _pricing_cache = {
+            m["id"]: {"input": float(m["precio_input"]), "output": float(m["precio_output"])}
+            for m in (result.data or [])
+        }
+        # Siempre incluir perplexity
+        _pricing_cache.setdefault("perplexity/sonar-pro", {"input": 3.0, "output": 15.0})
+        return _pricing_cache
+    except Exception:
+        return {
+            "anthropic/claude-sonnet-4": {"input": 3.0, "output": 15.0},
+            "perplexity/sonar-pro": {"input": 3.0, "output": 15.0},
+        }
+
+
+def listar_modelos() -> list[dict]:
+    """Lista modelos disponibles."""
+    client = get_client()
+    result = client.table("modelos").select("*").eq("activo", True).order("es_default", desc=True).order("nombre").execute()
+    return result.data or []
+
+
+def get_modelo_default() -> str:
+    """Retorna el ID del modelo default."""
+    client = get_client()
+    result = client.table("modelos").select("id").eq("es_default", True).limit(1).execute()
+    return result.data[0]["id"] if result.data else "anthropic/claude-sonnet-4"
 
 
 def get_client():
@@ -26,7 +59,8 @@ def get_client():
 
 def calcular_costo(tokens_input: int, tokens_output: int, modelo: str) -> float:
     """Calcula el costo en USD basado en tokens y modelo."""
-    prices = PRICING.get(modelo, {"input": 3.0, "output": 15.0})
+    pricing = _get_pricing()
+    prices = pricing.get(modelo, {"input": 3.0, "output": 15.0})
     return (tokens_input * prices["input"] / 1_000_000) + (tokens_output * prices["output"] / 1_000_000)
 
 
