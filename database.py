@@ -215,3 +215,83 @@ def stats_conocimiento() -> dict:
     client = get_client()
     total = client.table("conocimiento").select("id", count="exact").execute()
     return {"total_registros": total.count or 0}
+
+
+# ── Auth / usuarios ──
+
+def get_anon_count(anon_id: str) -> int:
+    """Devuelve cuántas clasificaciones ha hecho este usuario anónimo."""
+    client = get_client()
+    result = client.table("anon_usos").select("count").eq("anon_id", anon_id).execute()
+    return result.data[0]["count"] if result.data else 0
+
+
+def increment_anon_count(anon_id: str) -> int:
+    """Incrementa y devuelve el contador de usos anónimos."""
+    client = get_client()
+    result = client.table("anon_usos").select("count").eq("anon_id", anon_id).execute()
+    if result.data:
+        new_count = result.data[0]["count"] + 1
+        client.table("anon_usos").update(
+            {"count": new_count, "updated_at": datetime.utcnow().isoformat()}
+        ).eq("anon_id", anon_id).execute()
+    else:
+        new_count = 1
+        client.table("anon_usos").insert({"anon_id": anon_id, "count": 1}).execute()
+    return new_count
+
+
+def crear_verificacion(email: str, codigo: str, minutes: int = 15) -> None:
+    """Crea un código de verificación; invalida los anteriores del mismo email."""
+    from datetime import timedelta
+    client = get_client()
+    client.table("verificaciones").update({"usado": True}).eq("email", email).execute()
+    expires_at = (datetime.utcnow() + timedelta(minutes=minutes)).isoformat()
+    client.table("verificaciones").insert({
+        "email": email, "codigo": codigo,
+        "expires_at": expires_at, "usado": False,
+    }).execute()
+
+
+def verificar_codigo(email: str, codigo: str) -> bool:
+    """Valida el código. True si es correcto y no expiró; lo marca como usado."""
+    from datetime import timezone
+    client = get_client()
+    result = (
+        client.table("verificaciones")
+        .select("*")
+        .eq("email", email)
+        .eq("codigo", codigo.upper())
+        .eq("usado", False)
+        .execute()
+    )
+    if not result.data:
+        return False
+    record = result.data[0]
+    expires_str = record["expires_at"].replace("Z", "+00:00")
+    expires_at = datetime.fromisoformat(expires_str)
+    if datetime.now(timezone.utc) > expires_at:
+        return False
+    client.table("verificaciones").update({"usado": True}).eq("id", record["id"]).execute()
+    return True
+
+
+def get_or_create_usuario(email: str) -> dict:
+    """Obtiene o crea un usuario verificado."""
+    client = get_client()
+    result = client.table("usuarios").select("*").eq("email", email).execute()
+    if result.data:
+        u = result.data[0]
+        if not u.get("verificado"):
+            client.table("usuarios").update({"verificado": True}).eq("email", email).execute()
+            u["verificado"] = True
+        return u
+    new = client.table("usuarios").insert({"email": email, "verificado": True}).execute()
+    return new.data[0]
+
+
+def get_usuario(user_id: str) -> dict | None:
+    """Obtiene un usuario por su UUID."""
+    client = get_client()
+    result = client.table("usuarios").select("id,email,nombre,created_at").eq("id", user_id).execute()
+    return result.data[0] if result.data else None

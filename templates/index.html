@@ -1,359 +1,1226 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ACA - Agente de Clasificaci&oacute;n Arancelaria</title>
-    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
-    <style>
-        body{background:#0f172a}
-        .glass{background:rgba(30,41,59,.7);backdrop-filter:blur(12px);border:1px solid rgba(100,116,139,.3)}
-        .gradient-border{background:linear-gradient(135deg,#3b82f6,#8b5cf6,#ec4899);padding:2px;border-radius:1rem}
-        .gradient-border>div{border-radius:calc(1rem - 2px)}
-        .tab-active{background:linear-gradient(135deg,#3b82f6,#8b5cf6);color:#fff}
-        .tab-inactive{background:rgba(51,65,85,.5);color:#94a3b8}
-        .pulse-dot{width:10px;height:10px;background:#3b82f6;border-radius:50%;animation:pulse 1.5s infinite}
-        @keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.5;transform:scale(1.5)}}
-        .result-section{animation:fadeIn .5s ease-in}
-        @keyframes fadeIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
-        .markdown-body h3{color:#60a5fa;font-size:1.1rem;font-weight:700;margin-top:1rem}
-        .markdown-body strong{color:#e2e8f0}
-        .markdown-body table{width:100%;border-collapse:collapse;margin:.5rem 0;font-size:.85rem}
-        .markdown-body th,.markdown-body td{border:1px solid #334155;padding:6px 10px;text-align:left}
-        .markdown-body th{background:#1e293b;color:#93c5fd}
-        .markdown-body td{color:#cbd5e1}
-        .markdown-body p{margin:.3rem 0}
-        .markdown-body ul,.markdown-body ol{padding-left:1.5rem}
-        .markdown-body li{color:#cbd5e1;margin:.2rem 0}
-        textarea:focus,input:focus{outline:none;box-shadow:0 0 0 2px #3b82f6}
-        .chat-user{background:rgba(59,130,246,.15);border-left:3px solid #3b82f6}
-        .chat-assistant{background:rgba(16,185,129,.1);border-left:3px solid #10b981}
-        .chat-bubble{padding:10px 14px;border-radius:.5rem}
-        .source-card{background:rgba(30,41,59,.5);border:1px solid #334155;border-radius:.5rem;padding:10px 14px;transition:border-color .2s}
-        .source-card:hover{border-color:#3b82f6}
-        .metric-card{background:rgba(30,41,59,.5);border:1px solid #334155;border-radius:.75rem;padding:12px 16px;text-align:center}
-        .status-badge{padding:2px 10px;border-radius:9999px;font-size:.7rem;font-weight:600;text-transform:uppercase}
-        .status-pendiente{background:rgba(234,179,8,.2);color:#facc15}
-        .status-aprobada{background:rgba(34,197,94,.2);color:#22c55e}
-        .status-rechazada{background:rgba(239,68,68,.2);color:#ef4444}
-        .status-investigar{background:rgba(168,85,247,.2);color:#a855f7}
-        #chat-messages::-webkit-scrollbar{width:6px}
-        #chat-messages::-webkit-scrollbar-thumb{background:#334155;border-radius:3px}
-        .hist-row{border-bottom:1px solid #1e293b;padding:8px 0;cursor:pointer;transition:background .15s}
-        .hist-row:hover{background:rgba(59,130,246,.08)}
-    </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ACA — Clasificación Arancelaria</title>
+<link rel="icon" type="image/svg+xml" href="/static/logo.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#000;
+  --surface:#0d0d0d;
+  --card:#111;
+  --card-2:#181818;
+  --border:rgba(255,255,255,0.1);
+  --border-2:rgba(255,255,255,0.18);
+  --text:#fff;
+  --text-2:#aaa;
+  --text-3:#555;
+  --input-bg:#111;
+  --input-border:rgba(255,255,255,0.14);
+  --topbar-bg:rgba(0,0,0,0.9);
+  --topbar-border:rgba(255,255,255,0.07);
+  --scrollbar:#333;
+  --green:#4ade80;
+  --yellow:#fbbf24;
+  --red:#f87171;
+  --blue:#60a5fa;
+  --r:12px;
+  --topbar-h:52px;
+}
+[data-theme="light"]{
+  --bg:#f4f4f5;
+  --surface:#fff;
+  --card:#fff;
+  --card-2:#f4f4f5;
+  --border:rgba(0,0,0,0.08);
+  --border-2:rgba(0,0,0,0.14);
+  --text:#0a0a0a;
+  --text-2:#555;
+  --text-3:#aaa;
+  --input-bg:#fff;
+  --input-border:rgba(0,0,0,0.14);
+  --topbar-bg:rgba(244,244,245,0.92);
+  --topbar-border:rgba(0,0,0,0.08);
+  --scrollbar:#ccc;
+  --green:#16a34a;
+  --yellow:#d97706;
+  --red:#dc2626;
+  --blue:#2563eb;
+}
+html,body{height:100%;overflow:hidden}
+body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--text);font-size:14px;transition:background .2s,color .2s}
+::-webkit-scrollbar{width:4px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--scrollbar);border-radius:99px}
+
+/* ── TOP BAR ── */
+.topbar{
+  position:fixed;top:0;left:0;right:0;height:var(--topbar-h);
+  display:flex;align-items:center;padding:0 20px;z-index:100;
+  border-bottom:1px solid var(--topbar-border);
+  background:var(--topbar-bg);backdrop-filter:blur(16px);
+  transition:background .2s,border-color .2s;
+}
+.topbar-brand{display:flex;align-items:center;text-decoration:none;cursor:pointer}
+.topbar-logo{height:24px;width:auto;flex-shrink:0}
+.topbar-logo path,.topbar-logo polyline,.topbar-logo line{stroke:var(--text);transition:stroke .2s}
+.empty-logo-mark{height:58px;width:auto}
+.empty-logo-mark path,.empty-logo-mark polyline,.empty-logo-mark line{stroke:var(--text);transition:stroke .2s}
+.theme-btn{
+  background:transparent;border:1px solid var(--border);border-radius:8px;
+  cursor:pointer;color:var(--text-2);padding:6px 8px;display:flex;align-items:center;
+  transition:all .15s;margin-left:8px;
+}
+.theme-btn:hover{background:rgba(128,128,128,0.1);color:var(--text)}
+
+/* ── LOGIN BUTTON ── */
+.login-btn{
+  margin-left:12px;padding:6px 16px;border-radius:99px;
+  background:var(--text);color:var(--bg);
+  border:none;cursor:pointer;font-family:inherit;font-size:.8rem;font-weight:600;
+  transition:opacity .15s;
+}
+.login-btn:hover{opacity:.85}
+
+/* ── USAGE COUNTER ── */
+.usage-chip{
+  display:flex;align-items:center;gap:7px;margin-left:12px;
+  font-size:.74rem;color:var(--text-3);
+}
+.usage-bar-wrap{width:48px;height:4px;background:rgba(128,128,128,0.15);border-radius:99px;overflow:hidden}
+.usage-bar{height:100%;border-radius:99px;background:var(--text-3);transition:width .3s,background .3s}
+.usage-bar.warn{background:var(--yellow)}
+.usage-bar.full{background:var(--red)}
+.usage-reg-link{color:var(--text-2);background:none;border:none;cursor:pointer;font-family:inherit;font-size:.74rem;text-decoration:underline;padding:0}
+.usage-reg-link:hover{color:var(--text)}
+.user-pill{
+  display:flex;align-items:center;gap:7px;margin-left:12px;
+  background:rgba(128,128,128,0.09);border:1px solid var(--border);
+  border-radius:99px;padding:4px 12px 4px 8px;cursor:pointer;
+  font-size:.76rem;color:var(--text-2);transition:all .15s;
+}
+.user-pill:hover{border-color:rgba(128,128,128,0.25);color:var(--text)}
+.user-avatar{width:20px;height:20px;border-radius:50%;background:var(--text);color:var(--bg);
+  display:flex;align-items:center;justify-content:center;font-size:.65rem;font-weight:700}
+
+/* ── AUTH PAGE ── */
+.auth-page{
+  position:fixed;inset:0;z-index:200;background:var(--bg);
+  display:none;flex-direction:column;
+  opacity:0;transition:opacity .2s;
+}
+.auth-page.open{display:flex;opacity:1}
+.auth-ph{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:14px 20px;flex-shrink:0;
+}
+.auth-ph-logo{height:22px;width:auto}
+.auth-ph-logo polyline,.auth-ph-logo line,.auth-ph-logo path{stroke:var(--text);transition:stroke .2s}
+.auth-close{
+  background:none;border:none;cursor:pointer;color:var(--text-3);
+  padding:7px;display:flex;align-items:center;border-radius:50%;transition:background .15s;
+}
+.auth-close:hover{background:rgba(128,128,128,.12);color:var(--text)}
+.auth-body{
+  flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;
+  padding:20px 24px 80px;
+}
+.auth-inner{width:100%;max-width:380px;display:flex;flex-direction:column;gap:16px}
+.auth-title{font-size:1.7rem;font-weight:700;color:var(--text);text-align:center;line-height:1.25;margin-bottom:4px}
+.auth-subtitle{font-size:.86rem;color:var(--text-3);text-align:center;line-height:1.6}
+.auth-input{
+  width:100%;padding:13px 16px;border-radius:12px;box-sizing:border-box;
+  border:1px solid var(--border);background:var(--input-bg);color:var(--text);
+  font-family:inherit;font-size:.92rem;outline:none;transition:border-color .15s;
+}
+.auth-input:focus{border-color:var(--text-2)}
+.auth-primary{
+  width:100%;padding:13px;border-radius:99px;
+  background:var(--text);color:var(--bg);border:none;
+  font-family:inherit;font-size:.92rem;font-weight:600;cursor:pointer;transition:opacity .15s;
+}
+.auth-primary:hover:not(:disabled){opacity:.85}
+.auth-primary:disabled{opacity:.4;cursor:not-allowed}
+.auth-link{
+  background:none;border:none;cursor:pointer;color:var(--text-3);
+  font-family:inherit;font-size:.82rem;text-align:center;
+  text-decoration:underline;padding:0;transition:color .15s;
+}
+.auth-link:hover{color:var(--text-2)}
+.auth-err{font-size:.8rem;color:var(--red);text-align:center;display:none}
+.auth-ok{font-size:.8rem;color:var(--green);text-align:center;display:none}
+.auth-footer-txt{
+  position:absolute;bottom:24px;left:0;right:0;
+  font-size:.72rem;color:var(--text-3);text-align:center;padding:0 24px;line-height:1.6;
+}
+.code-grid{display:flex;gap:8px;justify-content:center}
+.code-cell{
+  width:44px;height:52px;text-align:center;font-size:1.2rem;font-weight:700;
+  background:var(--input-bg);border:1.5px solid var(--border);border-radius:10px;
+  color:var(--text);font-family:'JetBrains Mono',monospace;outline:none;
+  transition:border-color .15s;text-transform:uppercase;
+}
+.code-cell:focus{border-color:var(--text-2)}
+.topbar-nav{display:flex;gap:4px;margin-left:auto}
+.nav-pill{background:transparent;border:none;cursor:pointer;color:var(--text-3);
+  font-family:inherit;font-size:.82rem;font-weight:500;padding:6px 14px;border-radius:99px;
+  transition:background .15s,color .15s}
+.nav-pill:hover{background:rgba(128,128,128,0.12);color:var(--text-2)}
+.nav-pill.active{background:rgba(128,128,128,0.14);color:var(--text)}
+
+/* ── SCROLL AREA ── */
+.app{position:fixed;inset:0;padding-top:var(--topbar-h);overflow-y:auto;overscroll-behavior:contain}
+.page{display:none}
+.page.active{display:block}
+
+/* ── EMPTY STATE ── */
+.empty-center{
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  min-height:calc(100dvh - var(--topbar-h) - 140px);
+  text-align:center;gap:12px;padding:40px 20px;
+}
+.empty-logo{display:flex;align-items:center;justify-content:center}
+.empty-sub{font-size:.88rem;color:var(--text-3);max-width:320px;line-height:1.65}
+
+/* ── CONTENT ── */
+.content-area{max-width:740px;margin:0 auto;padding:24px 20px 160px;display:flex;flex-direction:column;gap:14px}
+
+/* ── CARDS ── */
+.card{background:var(--card);border:1px solid var(--border);border-radius:var(--r);overflow:hidden}
+.card-hd{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;border-bottom:1px solid var(--border)}
+.card-title{font-size:.84rem;font-weight:600;color:#fff}
+.card-sub{font-size:.71rem;color:var(--text-3)}
+.card-bd{padding:14px 16px}
+.rcard{background:var(--card);border:1px solid var(--border);border-radius:var(--r);overflow:hidden}
+.rcard-hd{display:flex;align-items:center;gap:10px;padding:11px 14px;border-bottom:1px solid var(--border)}
+.rcard-title{font-size:.82rem;font-weight:600;color:#fff}
+.rcard-bd{padding:14px;font-size:.82rem;color:var(--text-2);line-height:1.7}
+
+/* ── TAGS ── */
+.tag{font-size:.65rem;font-weight:700;letter-spacing:.04em;padding:3px 7px;border-radius:4px;background:#1a1a1a;color:#555;border:1px solid #2a2a2a}
+.tag-y{background:rgba(251,191,36,.1);color:#fbbf24;border-color:rgba(251,191,36,.2)}
+.tag-b{background:rgba(96,165,250,.1);color:#60a5fa;border-color:rgba(96,165,250,.2)}
+.tag-p{background:rgba(167,139,250,.1);color:#a78bfa;border-color:rgba(167,139,250,.2)}
+
+/* ── FIXED BOTTOM INPUT ── */
+.input-dock{
+  position:fixed;bottom:0;left:0;right:0;
+  padding:10px 20px 20px;
+  background:linear-gradient(to top,var(--bg) 55%,transparent);
+  z-index:100;
+  transition:background .2s;
+}
+.input-pill{
+  max-width:740px;margin:0 auto;
+  background:var(--input-bg);border:1px solid var(--input-border);border-radius:16px;
+  overflow:hidden;transition:border-color .15s,background .2s;
+}
+.input-pill:focus-within{border-color:var(--text-2)}
+.input-pill.drag{border-color:var(--text-2)}
+.input-pill textarea{
+  width:100%;background:transparent;border:none;outline:none;resize:none;
+  color:var(--text);font-family:inherit;font-size:.9rem;
+  padding:14px 16px 8px;min-height:48px;max-height:160px;
+  overflow-y:auto;line-height:1.5;
+}
+.input-pill textarea::placeholder{color:var(--text-3)}
+.input-bar{display:flex;align-items:center;gap:6px;padding:6px 8px 8px}
+.icon-btn{
+  background:transparent;border:none;cursor:pointer;color:#444;
+  border-radius:8px;padding:6px;display:flex;align-items:center;justify-content:center;
+  transition:color .15s,background .15s;
+}
+.icon-btn:hover{color:var(--text-2);background:rgba(255,255,255,0.06)}
+.chip{
+  display:inline-flex;align-items:center;gap:5px;font-size:.71rem;color:var(--text-2);
+  background:#1a1a1a;border:1px solid #333;border-radius:99px;padding:3px 8px;
+}
+.chip .x{background:none;border:none;cursor:pointer;color:#555;font-size:1rem;line-height:1;padding:0 0 0 2px}
+.chip .x:hover{color:#fff}
+.bar-hint{font-size:.74rem;color:#444;margin-left:auto}
+.send-btn{
+  margin-left:auto;background:var(--text);color:var(--bg);border:none;cursor:pointer;
+  border-radius:10px;padding:7px 16px;font-size:.82rem;font-weight:600;
+  font-family:inherit;display:flex;align-items:center;gap:6px;transition:opacity .15s,background .2s,color .2s;
+}
+.send-btn:disabled{opacity:.35;cursor:not-allowed}
+.send-btn:not(:disabled):hover{opacity:.85}
+
+/* ── LOADING ── */
+.lcard{display:none}
+.lcard.show{display:block}
+.steps{display:flex;flex-direction:column;gap:10px}
+.step{display:flex;align-items:flex-start;gap:10px;padding:5px 0}
+.step-i{width:20px;height:20px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:.67rem;font-weight:700;margin-top:1px}
+.step-i.w{background:#1a1a1a;border:1px solid #2a2a2a;color:#444}
+.step-i.r{background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.18);color:#fff}
+.step-i.d{background:rgba(74,222,128,.12);border:1px solid rgba(74,222,128,.25);color:var(--green)}
+.step-lbl{font-size:.8rem;color:var(--text-2);padding-top:1px;line-height:1.5}
+@keyframes spin{to{transform:rotate(360deg)}}
+.spin{animation:spin .75s linear infinite;display:inline-block}
+
+/* ── RESULTS ── */
+.results{display:none;flex-direction:column;gap:14px}
+.results.show{display:flex}
+.metrics{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+.metric{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:12px 14px}
+.metric-lbl{font-size:.68rem;color:var(--text-3);margin-bottom:4px;text-transform:uppercase;letter-spacing:.05em}
+.metric-val{font-size:1rem;font-weight:600;font-family:'JetBrains Mono',monospace}
+.c-blue{color:var(--blue)}.c-green{color:var(--green)}.c-yellow{color:var(--yellow)}.c-purple{color:#a78bfa}
+
+/* ── ALERTS ── */
+.alert{display:none;border-radius:var(--r);padding:11px 14px;font-size:.81rem;gap:8px;align-items:flex-start}
+.alert.show{display:flex}
+.alert.err{background:rgba(248,113,113,.07);border:1px solid rgba(248,113,113,.17);color:#f87171}
+
+/* ── BUTTONS / DECISION ── */
+.btn{display:inline-flex;align-items:center;gap:5px;border:none;cursor:pointer;border-radius:8px;padding:7px 14px;font-family:inherit;font-size:.79rem;font-weight:500;transition:opacity .15s}
+.btn-ok{background:rgba(74,222,128,.1);color:var(--green);border:1px solid rgba(74,222,128,.2)}
+.btn-err{background:rgba(248,113,113,.1);color:var(--red);border:1px solid rgba(248,113,113,.2)}
+.btn-warn{background:rgba(251,191,36,.1);color:var(--yellow);border:1px solid rgba(251,191,36,.2)}
+.btn-ghost{background:rgba(255,255,255,0.05);color:var(--text-2);border:1px solid var(--border)}
+.btn-primary{background:var(--text);color:var(--bg);font-weight:600;transition:opacity .15s,background .2s,color .2s}
+.btn:hover{opacity:.78}
+.btn-full{width:100%;justify-content:center}
+.dec-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:11px}
+.dec-fb{display:none;font-size:.79rem;margin-top:9px;padding:8px 11px;border-radius:8px}
+.dec-fb.ok{background:rgba(74,222,128,.07);color:var(--green);border:1px solid rgba(74,222,128,.17)}
+.dec-fb.err{background:rgba(248,113,113,.07);color:var(--red);border:1px solid rgba(248,113,113,.17)}
+textarea{background:var(--card-2);border:1px solid var(--border);border-radius:8px;padding:10px 12px;color:var(--text);font-family:inherit;font-size:.82rem;resize:vertical;width:100%;outline:none;transition:border-color .15s,background .2s}
+textarea:focus{border-color:var(--text-3)}
+.flabel{display:block;font-size:.71rem;color:var(--text-3);margin-bottom:6px;text-transform:uppercase;letter-spacing:.04em}
+
+/* ── CHAT ── */
+.chat-wrap{background:var(--card);border:1px solid var(--border);border-radius:var(--r);overflow:hidden}
+.chat-hd{padding:12px 14px;border-bottom:1px solid var(--border);display:flex;flex-direction:column;gap:2px}
+.chat-hd-t{font-size:.82rem;font-weight:600;color:#fff}
+.chat-hd-s{font-size:.71rem;color:var(--text-3)}
+.chat-msgs{max-height:280px;overflow-y:auto;padding:12px 14px;display:flex;flex-direction:column;gap:10px}
+.chat-think{display:none;align-items:center;gap:4px;padding:8px 14px;font-size:.75rem;color:var(--text-3)}
+.chat-think .d{width:4px;height:4px;border-radius:50%;background:var(--text-3);animation:blink 1.2s infinite}
+.chat-think .d:nth-child(2){animation-delay:.2s}
+.chat-think .d:nth-child(3){animation-delay:.4s}
+@keyframes blink{0%,100%{opacity:.25}50%{opacity:1}}
+.chat-footer{display:flex;gap:8px;padding:10px 12px;border-top:1px solid var(--border)}
+.chat-footer input{flex:1;background:var(--card-2);border:1px solid var(--border);border-radius:8px;padding:8px 12px;color:var(--text);font-family:inherit;font-size:.82rem;outline:none;transition:background .2s}
+.chat-footer input:focus{border-color:var(--text-3)}
+.chat-msg{display:flex;flex-direction:column;gap:3px}
+.chat-role{font-size:.66rem;color:var(--text-3);font-weight:600;text-transform:uppercase;letter-spacing:.05em}
+.chat-body{font-size:.81rem;color:var(--text-2);line-height:1.6}
+.chat-body.md code{background:#1a1a1a;padding:1px 5px;border-radius:4px;font-family:'JetBrains Mono',monospace;font-size:.88em}
+
+/* ── SOURCES ── */
+.divider{height:1px;background:var(--border);margin:12px 0}
+.src-lbl{font-size:.68rem;color:var(--text-3);text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px}
+.sources{display:flex;flex-direction:column;gap:6px}
+.src-item a{font-size:.78rem;color:rgba(96,165,250,.85);text-decoration:none}
+.src-item a:hover{text-decoration:underline}
+.src-item p{font-size:.73rem;color:var(--text-3);margin-top:2px;line-height:1.5}
+
+/* ── MARKDOWN ── */
+.md h1,.md h2,.md h3{color:#fff;font-weight:600;margin:12px 0 6px}
+.md h1{font-size:1rem}.md h2{font-size:.94rem}.md h3{font-size:.88rem}
+.md p{margin:6px 0;color:var(--text-2)}
+.md ul,.md ol{padding-left:18px;margin:6px 0;color:var(--text-2)}
+.md li{margin:3px 0;font-size:.82rem}
+.md code{background:#1a1a1a;padding:2px 5px;border-radius:4px;font-family:'JetBrains Mono',monospace;font-size:.85em;color:#e5e5e5}
+.md pre{background:#0d0d0d;border:1px solid var(--border);border-radius:8px;padding:12px;overflow-x:auto;margin:8px 0}
+.md pre code{background:none;padding:0}
+.md strong{color:#fff;font-weight:600}
+.md table{width:100%;border-collapse:collapse;font-size:.8rem;margin:8px 0}
+.md th{text-align:left;padding:7px 10px;border-bottom:1px solid var(--border);color:var(--text-3);font-weight:500;font-size:.72rem;text-transform:uppercase}
+.md td{padding:8px 10px;border-bottom:1px solid rgba(255,255,255,0.04);color:var(--text-2)}
+.md a{color:#60a5fa;text-decoration:none}.md a:hover{text-decoration:underline}
+.md blockquote{border-left:2px solid #333;padding-left:12px;color:var(--text-3);font-style:italic}
+
+/* ── HISTORIAL ── */
+.filter-pills{display:flex;gap:6px;flex-wrap:wrap;padding:12px 16px}
+.fpill{background:transparent;border:1px solid rgba(255,255,255,0.08);border-radius:99px;color:var(--text-3);font-family:inherit;font-size:.74rem;padding:4px 12px;cursor:pointer;transition:all .15s}
+.fpill:hover{border-color:rgba(255,255,255,0.18);color:var(--text-2)}
+.fpill.active{background:rgba(255,255,255,0.09);border-color:rgba(255,255,255,0.18);color:#fff}
+.htable{width:100%;border-collapse:collapse;font-size:.79rem}
+.htable th{padding:9px 14px;text-align:left;color:var(--text-3);font-weight:500;font-size:.71rem;text-transform:uppercase;letter-spacing:.04em;border-bottom:1px solid var(--border)}
+.htable td{padding:11px 14px;border-bottom:1px solid rgba(255,255,255,0.04);color:var(--text-2);vertical-align:middle}
+.htable tr:last-child td{border-bottom:none}
+.htable tr:hover td{background:rgba(255,255,255,0.02);cursor:pointer}
+.mono{font-family:'JetBrains Mono',monospace;font-size:.8rem;color:#fff}
+.tdesc{display:block;max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.status-dot{display:inline-flex;align-items:center;gap:5px;font-size:.71rem;font-weight:500;border-radius:99px;padding:3px 10px}
+.status-dot.pendiente{background:rgba(251,191,36,.09);color:var(--yellow);border:1px solid rgba(251,191,36,.18)}
+.status-dot.aprobada{background:rgba(74,222,128,.09);color:var(--green);border:1px solid rgba(74,222,128,.18)}
+.status-dot.rechazada{background:rgba(248,113,113,.09);color:var(--red);border:1px solid rgba(248,113,113,.18)}
+.status-dot.investigar{background:rgba(96,165,250,.09);color:var(--blue);border:1px solid rgba(96,165,250,.18)}
+
+/* ── DETALLE ── */
+.detail-back{display:inline-flex;align-items:center;gap:6px;background:transparent;border:1px solid var(--border);border-radius:8px;color:var(--text-2);font-family:inherit;font-size:.79rem;cursor:pointer;padding:7px 12px;margin-bottom:16px;transition:all .15s}
+.detail-back:hover{border-color:rgba(255,255,255,0.2);color:#fff}
+.detail-id{font-family:'JetBrains Mono',monospace;font-size:.86rem;color:#fff;background:#1a1a1a;border:1px solid var(--border);border-radius:6px;padding:3px 10px}
+
+/* ── IMPORTAR ── */
+.import-grid{display:grid;grid-template-columns:1fr 260px;gap:14px}
+.dropzone{display:block;border:1.5px dashed #2a2a2a;border-radius:var(--r);padding:32px;text-align:center;cursor:pointer;color:var(--text-3);transition:border-color .15s,color .15s}
+.dropzone:hover{border-color:#444;color:var(--text-2)}
+.dropzone p{font-size:.8rem;margin-top:8px}
+.kb-big{font-size:2.5rem;font-weight:700;font-family:'JetBrains Mono',monospace;color:#fff}
+.schema-pre{font-family:'JetBrains Mono',monospace;font-size:.74rem;line-height:1.8;background:var(--surface);border-radius:8px;padding:12px;border:1px solid var(--border)}
+.schema-pre .k{color:#a78bfa}.schema-pre .v{color:#60a5fa}
+.ficha-pre{font-family:'JetBrains Mono',monospace;font-size:.76rem;white-space:pre-wrap;word-break:break-all;color:var(--text-2);line-height:1.6}
+
+/* ── MOBILE ── */
+@media(max-width:640px){
+  .metrics{grid-template-columns:repeat(2,1fr)}
+  .import-grid{grid-template-columns:1fr}
+  .htable th:nth-child(4),.htable td:nth-child(4),
+  .htable th:nth-child(5),.htable td:nth-child(5){display:none}
+  .topbar-brand{font-size:1rem}
+  .nav-pill{padding:5px 10px;font-size:.78rem}
+  .content-area{padding:16px 12px 140px}
+  .input-dock{padding:8px 12px 16px}
+}
+@media(max-width:520px){
+  .htable,tbody,thead,tr,td,th{display:block}
+  thead{display:none}
+  .htable tr{padding:12px 14px;border-bottom:1px solid var(--border);display:flex;flex-wrap:wrap;gap:6px}
+  .htable td{border:none;padding:0}
+  .htable td:nth-child(1){width:100%;font-weight:600}
+  .htable td:nth-child(2){width:100%}
+  .htable td:nth-child(3){font-size:.71rem;color:var(--text-3)}
+  .htable td:nth-child(6){margin-left:auto}
+}
+</style>
 </head>
-<body class="min-h-screen text-gray-200">
-    <header class="py-6 px-4">
-        <div class="max-w-5xl mx-auto text-center">
-            <div class="flex items-center justify-center gap-3 mb-2">
-                <i class="fas fa-globe-americas text-3xl text-blue-400"></i>
-                <h1 class="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-400 via-purple-400 to-pink-400">ACA</h1>
-            </div>
-            <p class="text-gray-400 text-sm">Agente de Clasificaci&oacute;n Arancelaria &mdash; Decreto 1881/2021 &mdash; DIAN Colombia</p>
-            <!-- Nav tabs -->
-            <div class="flex justify-center gap-4 mt-4">
-                <button onclick="showPage('clasificar')" id="nav-clasificar" class="text-sm text-blue-400 border-b-2 border-blue-400 pb-1 font-medium">Clasificar</button>
-                <button onclick="showPage('historial')" id="nav-historial" class="text-sm text-gray-500 border-b-2 border-transparent pb-1 hover:text-gray-300">Historial</button>
-                <button onclick="showPage('importar')" id="nav-importar" class="text-sm text-gray-500 border-b-2 border-transparent pb-1 hover:text-gray-300">Importar BD</button>
-            </div>
+<body>
+
+<!-- TOP BAR -->
+<header class="topbar">
+  <a class="topbar-brand" onclick="route('/')">
+    <svg class="topbar-logo" viewBox="0 0 126 62" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <polyline points="2,58 21,4 40,58" stroke="currentColor" stroke-width="5.5" stroke-linecap="round" stroke-linejoin="round"/>
+      <line x1="11" y1="38" x2="31" y2="38" stroke="currentColor" stroke-width="5.5" stroke-linecap="round"/>
+      <path d="M 81 17 A 22 22 0 1 0 81 45" stroke="currentColor" stroke-width="5.5" stroke-linecap="round" fill="none"/>
+      <polyline points="85,58 104,4 123,58" stroke="currentColor" stroke-width="5.5" stroke-linecap="round" stroke-linejoin="round"/>
+      <line x1="92" y1="38" x2="116" y2="38" stroke="currentColor" stroke-width="5.5" stroke-linecap="round"/>
+    </svg>
+  </a>
+  <nav class="topbar-nav">
+    <button class="nav-pill" id="nav-historial" onclick="route('/historial')" style="display:none">Historial</button>
+    <button class="nav-pill" id="nav-importar" onclick="route('/importar')" style="display:none">Importar</button>
+  </nav>
+  <!-- Login button (anon) -->
+  <button class="login-btn" id="login-btn" style="display:none" onclick="openAuthModal()">Login</button>
+  <!-- Logged-in user pill -->
+  <div class="user-pill" id="user-pill" style="display:none" onclick="openUserMenu()">
+    <div class="user-avatar" id="user-avatar"></div>
+    <span id="user-email-short"></span>
+  </div>
+
+  <button class="theme-btn" id="theme-btn" onclick="toggleTheme()" title="Cambiar tema">
+    <!-- sun icon (shown in dark mode) -->
+    <svg id="icon-sun" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+      <circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/>
+      <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/>
+      <line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/>
+      <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
+    </svg>
+    <!-- moon icon (shown in light mode) -->
+    <svg id="icon-moon" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="display:none">
+      <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+    </svg>
+  </button>
+</header>
+
+<!-- SCROLL AREA -->
+<div class="app" id="app">
+
+  <!-- PAGE: CLASIFICAR -->
+  <div class="page active" id="page-clasificar">
+    <div id="empty-state" class="empty-center">
+      <div class="empty-logo">
+        <svg class="empty-logo-mark" viewBox="0 0 126 62" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <polyline points="2,58 21,4 40,58" stroke="currentColor" stroke-width="5.5" stroke-linecap="round" stroke-linejoin="round"/>
+          <line x1="11" y1="38" x2="31" y2="38" stroke="currentColor" stroke-width="5.5" stroke-linecap="round"/>
+          <path d="M 81 17 A 22 22 0 1 0 81 45" stroke="currentColor" stroke-width="5.5" stroke-linecap="round" fill="none"/>
+          <polyline points="85,58 104,4 123,58" stroke="currentColor" stroke-width="5.5" stroke-linecap="round" stroke-linejoin="round"/>
+          <line x1="92" y1="38" x2="116" y2="38" stroke="currentColor" stroke-width="5.5" stroke-linecap="round"/>
+        </svg>
+      </div>
+      <div class="empty-sub">Clasificación arancelaria con IA.<br>Pegue una ficha técnica, URL o adjunte un PDF.</div>
+    </div>
+    <div class="content-area" id="clas-content">
+      <!-- Loading -->
+      <div class="card lcard" id="lcard">
+        <div class="card-hd">
+          <span class="card-title">
+            <svg class="spin" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-6.22-8.56"/></svg>
+            Procesando
+          </span>
+          <span class="card-sub">3 agentes · Decreto 1881/2021 · Supabase</span>
         </div>
-    </header>
-
-    <main class="max-w-5xl mx-auto px-4 pb-12">
-
-        <!-- ══════ PAGE: CLASIFICAR ══════ -->
-        <div id="page-clasificar">
-            <div class="gradient-border mb-8">
-                <div class="bg-gray-900 p-6 rounded-xl">
-                    <div class="flex flex-wrap gap-2 mb-6">
-                        <button onclick="switchTab('texto')" id="tab-texto" class="tab-active px-5 py-2 rounded-lg text-sm font-medium transition-all"><i class="fas fa-keyboard mr-2"></i>Texto</button>
-                        <button onclick="switchTab('url')" id="tab-url" class="tab-inactive px-5 py-2 rounded-lg text-sm font-medium transition-all"><i class="fas fa-link mr-2"></i>URL</button>
-                        <button onclick="switchTab('archivo')" id="tab-archivo" class="tab-inactive px-5 py-2 rounded-lg text-sm font-medium transition-all"><i class="fas fa-file-upload mr-2"></i>PDF / Imagen</button>
-                    </div>
-                    <form id="form-clasificar" enctype="multipart/form-data">
-                        <input type="hidden" name="input_type" id="input_type" value="texto">
-                        <div id="panel-texto"><textarea name="ficha_texto" id="ficha_texto" rows="7" class="w-full bg-gray-800 border border-gray-700 rounded-lg p-4 text-gray-200 text-sm resize-y placeholder-gray-500" placeholder="Pegue la ficha t&eacute;cnica del producto..."></textarea></div>
-                        <div id="panel-url" class="hidden"><input type="url" name="ficha_url" id="ficha_url" class="w-full bg-gray-800 border border-gray-700 rounded-lg p-4 text-gray-200 text-sm placeholder-gray-500" placeholder="https://ejemplo.com/ficha.pdf"></div>
-                        <div id="panel-archivo" class="hidden">
-                            <label class="flex flex-col items-center justify-center w-full h-36 border-2 border-dashed border-gray-600 rounded-lg cursor-pointer hover:border-blue-500" id="drop-zone">
-                                <div id="upload-placeholder" class="text-center"><i class="fas fa-cloud-upload-alt text-3xl text-gray-500 mb-2"></i><p class="text-sm text-gray-400">PDF, PNG, JPG, WEBP (max 32MB)</p></div>
-                                <div id="file-preview" class="hidden text-center"><i id="file-icon" class="fas fa-file-pdf text-4xl text-red-400 mb-2"></i><p id="file-name" class="text-sm text-gray-300"></p></div>
-                                <input type="file" name="ficha_archivo" id="ficha_archivo" accept=".pdf,.png,.jpg,.jpeg,.webp,.gif,.bmp,image/*" class="hidden">
-                            </label>
-                        </div>
-                        <button type="submit" id="btn-clasificar" class="mt-4 w-full py-3 rounded-lg font-semibold text-white bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"><i class="fas fa-search"></i> Clasificar Producto</button>
-                    </form>
-                </div>
-            </div>
-
-            <!-- Loading -->
-            <div id="loading" class="hidden mb-8">
-                <div class="glass rounded-xl p-6">
-                    <div class="flex items-center gap-4"><div class="pulse-dot"></div><div><p class="text-blue-300 font-medium">Procesando...</p><p class="text-xs text-gray-500 mt-1">3 agentes + base de conocimiento</p></div></div>
-                    <div class="mt-4 space-y-2">
-                        <div id="step-1" class="flex items-center gap-2 text-sm"><i class="fas fa-circle-notch fa-spin text-yellow-400"></i><span class="text-gray-300">Investigador buscando resoluciones DIAN...</span></div>
-                        <div id="step-2" class="flex items-center gap-2 text-sm"><i class="fas fa-circle text-gray-700 text-xs"></i><span class="text-gray-600">Clasificador pendiente...</span></div>
-                        <div id="step-3" class="flex items-center gap-2 text-sm"><i class="fas fa-circle text-gray-700 text-xs"></i><span class="text-gray-600">Validador pendiente...</span></div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Error -->
-            <div id="error-box" class="hidden mb-8"><div class="bg-red-900 bg-opacity-30 border border-red-700 rounded-xl p-5"><i class="fas fa-exclamation-triangle text-red-400 mr-2"></i><span class="text-red-400 text-sm" id="error-message"></span></div></div>
-
-            <!-- Results -->
-            <div id="results" class="hidden space-y-6">
-                <!-- Metrics bar -->
-                <div class="grid grid-cols-2 md:grid-cols-4 gap-3 result-section">
-                    <div class="metric-card"><p class="text-xs text-gray-500">Tiempo</p><p class="text-lg font-bold text-blue-400" id="m-tiempo">-</p></div>
-                    <div class="metric-card"><p class="text-xs text-gray-500">Costo COP</p><p class="text-lg font-bold text-green-400" id="m-cop">-</p></div>
-                    <div class="metric-card"><p class="text-xs text-gray-500">Costo USD</p><p class="text-lg font-bold text-yellow-400" id="m-usd">-</p></div>
-                    <div class="metric-card"><p class="text-xs text-gray-500">Tokens</p><p class="text-lg font-bold text-purple-400" id="m-tokens">-</p></div>
-                </div>
-
-                <!-- Ficha extraída -->
-                <div id="ficha-extraida-box" class="hidden result-section"><div class="glass rounded-xl p-5"><h2 class="flex items-center gap-2 text-gray-300 font-semibold mb-3"><i class="fas fa-file-alt text-gray-400"></i> Ficha Extra&iacute;da</h2><pre id="ficha-extraida" class="text-sm text-gray-400 whitespace-pre-wrap bg-gray-800 bg-opacity-50 rounded-lg p-4 max-h-40 overflow-y-auto"></pre></div></div>
-
-                <!-- Investigador -->
-                <div class="result-section"><div class="glass rounded-xl p-5">
-                    <h2 class="flex items-center gap-2 text-yellow-300 font-semibold mb-2"><i class="fas fa-search-plus text-yellow-400"></i> Paso 1: Investigador DIAN</h2>
-                    <div id="result-investigacion" class="markdown-body text-sm text-gray-300"></div>
-                    <div id="fuentes-box" class="hidden mt-4"><h3 class="text-xs text-gray-500 uppercase tracking-wider mb-2">Fuentes</h3><div id="fuentes-list" class="space-y-2 max-h-48 overflow-y-auto"></div></div>
-                </div></div>
-
-                <!-- Clasificador -->
-                <div class="result-section"><div class="glass rounded-xl p-5">
-                    <h2 class="flex items-center gap-2 text-blue-300 font-semibold mb-2"><i class="fas fa-tags text-blue-400"></i> Paso 2: Clasificador</h2>
-                    <div id="result-clasificacion" class="markdown-body text-sm text-gray-300"></div>
-                </div></div>
-
-                <!-- Validador -->
-                <div class="result-section"><div class="glass rounded-xl p-5">
-                    <h2 class="flex items-center gap-2 text-purple-300 font-semibold mb-2"><i class="fas fa-check-double text-purple-400"></i> Paso 3: Validador</h2>
-                    <div id="result-validacion" class="markdown-body text-sm text-gray-300"></div>
-                </div></div>
-
-                <!-- Acciones: Aprobar / Rechazar / Investigar -->
-                <div class="result-section">
-                    <div class="glass rounded-xl p-5">
-                        <h2 class="flex items-center gap-2 text-gray-300 font-semibold mb-3"><i class="fas fa-gavel text-gray-400"></i> Decisi&oacute;n</h2>
-                        <textarea id="notas-decision" rows="2" class="w-full bg-gray-800 border border-gray-700 rounded-lg p-3 text-gray-200 text-sm mb-3 placeholder-gray-500" placeholder="Notas opcionales sobre la decisi&oacute;n..."></textarea>
-                        <div class="flex flex-wrap gap-3">
-                            <button onclick="setEstado('aprobada')" class="px-6 py-2.5 rounded-lg font-medium text-white bg-green-600 hover:bg-green-500 transition-all"><i class="fas fa-check mr-2"></i>Aprobar</button>
-                            <button onclick="setEstado('rechazada')" class="px-6 py-2.5 rounded-lg font-medium text-white bg-red-600 hover:bg-red-500 transition-all"><i class="fas fa-times mr-2"></i>Rechazar</button>
-                            <button onclick="setEstado('investigar')" class="px-6 py-2.5 rounded-lg font-medium text-white bg-purple-600 hover:bg-purple-500 transition-all"><i class="fas fa-microscope mr-2"></i>Investigar m&aacute;s</button>
-                        </div>
-                        <div id="estado-feedback" class="hidden mt-3 text-sm"></div>
-                    </div>
-                </div>
-
-                <!-- Chat -->
-                <div class="result-section"><div class="glass rounded-xl p-5">
-                    <h2 class="flex items-center gap-2 text-green-300 font-semibold mb-3"><i class="fas fa-comments text-green-400"></i> Chat</h2>
-                    <div id="chat-messages" class="space-y-3 mb-4 max-h-80 overflow-y-auto pr-2"></div>
-                    <div id="chat-loading" class="hidden mb-3"><div class="flex items-center gap-2 text-sm text-gray-400"><i class="fas fa-circle-notch fa-spin text-green-400"></i><span>Pensando...</span></div></div>
-                    <div class="flex gap-2">
-                        <input type="text" id="chat-input" class="flex-1 bg-gray-800 border border-gray-700 rounded-lg px-4 py-2.5 text-gray-200 text-sm placeholder-gray-500" placeholder="Pregunta sobre la clasificaci&oacute;n..." autocomplete="off">
-                        <button id="btn-chat" class="px-5 py-2.5 rounded-lg font-medium text-white bg-gradient-to-r from-green-600 to-teal-600 hover:from-green-500 hover:to-teal-500 transition-all disabled:opacity-50"><i class="fas fa-paper-plane"></i></button>
-                    </div>
-                </div></div>
-            </div>
+        <div class="card-bd">
+          <div class="steps">
+            <div class="step" id="s1"><div class="step-i w" id="s1i">1</div><span class="step-lbl" id="s1t">Investigador — buscando resoluciones DIAN + Perplexity</span></div>
+            <div class="step" id="s2"><div class="step-i w" id="s2i">2</div><span class="step-lbl" id="s2t">Clasificador — pendiente</span></div>
+            <div class="step" id="s3"><div class="step-i w" id="s3i">3</div><span class="step-lbl" id="s3t">Validador — pendiente</span></div>
+          </div>
         </div>
-
-        <!-- ══════ PAGE: HISTORIAL ══════ -->
-        <div id="page-historial" class="hidden">
-            <div class="glass rounded-xl p-5 mb-4">
-                <div class="flex items-center justify-between mb-4">
-                    <h2 class="text-lg font-semibold text-gray-200"><i class="fas fa-history mr-2 text-blue-400"></i>Historial de clasificaciones</h2>
-                    <div class="flex gap-2">
-                        <button onclick="loadHistorial()" class="text-xs text-blue-400 hover:text-blue-300"><i class="fas fa-sync-alt mr-1"></i>Refrescar</button>
-                    </div>
-                </div>
-                <div class="flex gap-2 mb-4 flex-wrap">
-                    <button onclick="loadHistorial()" class="text-xs px-3 py-1 rounded bg-gray-700 text-gray-300 hover:bg-gray-600">Todos</button>
-                    <button onclick="loadHistorial('pendiente')" class="text-xs px-3 py-1 rounded bg-yellow-900 text-yellow-300 hover:bg-yellow-800">Pendientes</button>
-                    <button onclick="loadHistorial('aprobada')" class="text-xs px-3 py-1 rounded bg-green-900 text-green-300 hover:bg-green-800">Aprobadas</button>
-                    <button onclick="loadHistorial('rechazada')" class="text-xs px-3 py-1 rounded bg-red-900 text-red-300 hover:bg-red-800">Rechazadas</button>
-                    <button onclick="loadHistorial('investigar')" class="text-xs px-3 py-1 rounded bg-purple-900 text-purple-300 hover:bg-purple-800">Por investigar</button>
-                </div>
-                <div id="historial-list" class="space-y-1 max-h-96 overflow-y-auto text-sm"></div>
-                <p id="historial-empty" class="hidden text-gray-500 text-sm text-center py-8">No hay clasificaciones a&uacute;n.</p>
-            </div>
+      </div>
+      <!-- Error -->
+      <div class="alert err" id="err-box">
+        <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="flex-shrink:0;margin-top:1px"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+        <span id="err-msg"></span>
+      </div>
+      <!-- Results -->
+      <div class="results" id="results">
+        <div class="metrics">
+          <div class="metric"><div class="metric-lbl">Tiempo</div><div class="metric-val c-blue" id="m-t">—</div></div>
+          <div class="metric"><div class="metric-lbl">Costo COP</div><div class="metric-val c-green" id="m-cop">—</div></div>
+          <div class="metric"><div class="metric-lbl">Costo USD</div><div class="metric-val c-yellow" id="m-usd">—</div></div>
+          <div class="metric"><div class="metric-lbl">Tokens</div><div class="metric-val c-purple" id="m-tok">—</div></div>
         </div>
-
-        <!-- ══════ PAGE: IMPORTAR BD ══════ -->
-        <div id="page-importar" class="hidden">
-            <div class="glass rounded-xl p-5">
-                <h2 class="text-lg font-semibold text-gray-200 mb-4"><i class="fas fa-database mr-2 text-blue-400"></i>Importar base de conocimiento</h2>
-                <p class="text-sm text-gray-400 mb-4">Suba un archivo CSV o JSON con clasificaciones previas. Campos esperados: <code class="text-blue-300">producto</code>, <code class="text-blue-300">subpartida</code>, <code class="text-blue-300">gravamen</code> (opcional), <code class="text-blue-300">justificacion</code> (opcional), <code class="text-blue-300">fuente</code> (opcional).</p>
-                <form id="form-importar" enctype="multipart/form-data">
-                    <input type="file" name="archivo" id="import-file" accept=".csv,.json" class="block w-full text-sm text-gray-400 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-blue-600 file:text-white hover:file:bg-blue-500 mb-4">
-                    <button type="submit" class="px-6 py-2.5 rounded-lg font-medium text-white bg-blue-600 hover:bg-blue-500 disabled:opacity-50"><i class="fas fa-upload mr-2"></i>Importar</button>
-                </form>
-                <div id="import-result" class="hidden mt-4 text-sm"></div>
-                <div class="mt-6 pt-4 border-t border-gray-700">
-                    <h3 class="text-sm font-medium text-gray-400 mb-2">Estad&iacute;sticas</h3>
-                    <p class="text-sm text-gray-500">Registros en base de conocimiento: <span id="kb-count" class="text-blue-400 font-bold">-</span></p>
-                </div>
-            </div>
+        <div class="rcard" id="ficha-box" style="display:none">
+          <div class="rcard-hd"><span class="tag">EXTRAÍDO</span><span class="rcard-title">Texto del documento</span></div>
+          <div class="rcard-bd"><pre class="ficha-pre" id="ficha-txt"></pre></div>
         </div>
-    </main>
+        <div class="rcard">
+          <div class="rcard-hd"><span class="tag tag-y">PASO 1</span><span class="rcard-title">Investigador DIAN</span></div>
+          <div class="rcard-bd">
+            <div class="md" id="r-inv"></div>
+            <div id="fuentes-wrap" style="display:none">
+              <div class="divider"></div>
+              <div class="src-lbl">Fuentes consultadas</div>
+              <div class="sources" id="fuentes-list"></div>
+            </div>
+          </div>
+        </div>
+        <div class="rcard">
+          <div class="rcard-hd"><span class="tag tag-b">PASO 2</span><span class="rcard-title">Clasificador</span></div>
+          <div class="rcard-bd"><div class="md" id="r-cls"></div></div>
+        </div>
+        <div class="rcard">
+          <div class="rcard-hd"><span class="tag tag-p">PASO 3</span><span class="rcard-title">Validador</span></div>
+          <div class="rcard-bd"><div class="md" id="r-val"></div></div>
+        </div>
+        <div class="rcard">
+          <div class="rcard-hd">
+            <span class="rcard-title">Decisión</span>
+            <span class="card-sub">Las aprobadas se agregan a la base de conocimiento</span>
+          </div>
+          <div class="rcard-bd">
+            <label class="flabel">Notas opcionales</label>
+            <textarea id="dec-notas" rows="2" placeholder="Observaciones..."></textarea>
+            <div class="dec-actions">
+              <button onclick="setEstado('aprobada')" class="btn btn-ok"><svg width="11" height="11" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>Aprobar</button>
+              <button onclick="setEstado('rechazada')" class="btn btn-err"><svg width="11" height="11" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>Rechazar</button>
+              <button onclick="setEstado('investigar')" class="btn btn-warn"><svg width="11" height="11" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>Investigar más</button>
+            </div>
+            <div class="dec-fb" id="dec-fb"></div>
+          </div>
+        </div>
+        <div class="chat-wrap">
+          <div class="chat-hd">
+            <span class="chat-hd-t">Consulta al agente</span>
+            <span class="chat-hd-s">Pregunta sobre esta clasificación</span>
+          </div>
+          <div class="chat-msgs" id="chat-msgs"></div>
+          <div class="chat-think" id="chat-load">
+            <span class="d"></span><span class="d"></span><span class="d"></span>
+            <span style="margin-left:4px">Procesando...</span>
+          </div>
+          <div class="chat-footer">
+            <input type="text" id="chat-in" placeholder="Escribe una pregunta..." autocomplete="off">
+            <button id="btn-chat" class="btn btn-primary" style="padding:7px 13px">
+              <svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
 
-    <script>
-        // ── Navigation ──
-        function showPage(page) {
-            ['clasificar','historial','importar'].forEach(p => {
-                document.getElementById('page-' + p).classList.toggle('hidden', p !== page);
-                const nav = document.getElementById('nav-' + p);
-                nav.className = p === page ? 'text-sm text-blue-400 border-b-2 border-blue-400 pb-1 font-medium' : 'text-sm text-gray-500 border-b-2 border-transparent pb-1 hover:text-gray-300';
-            });
-            if (page === 'historial') loadHistorial();
-            if (page === 'importar') loadKBStats();
-        }
+  <!-- PAGE: HISTORIAL -->
+  <div class="page" id="page-historial">
+    <div class="content-area" style="padding-bottom:40px">
+      <div class="card">
+        <div class="card-hd">
+          <span class="card-title">Historial de clasificaciones</span>
+          <button onclick="loadHist(activePill)" class="btn btn-ghost" style="padding:4px 10px;font-size:.72rem">
+            <svg width="11" height="11" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-3.51"/></svg>
+            Refrescar
+          </button>
+        </div>
+        <div class="filter-pills">
+          <button class="fpill active" onclick="loadHist()" id="fp-all">Todos</button>
+          <button class="fpill" onclick="loadHist('pendiente')" id="fp-pendiente">Pendientes</button>
+          <button class="fpill" onclick="loadHist('aprobada')" id="fp-aprobada">Aprobadas</button>
+          <button class="fpill" onclick="loadHist('rechazada')" id="fp-rechazada">Rechazadas</button>
+          <button class="fpill" onclick="loadHist('investigar')" id="fp-investigar">Por investigar</button>
+        </div>
+        <div style="overflow-x:auto">
+          <table class="htable">
+            <thead><tr><th>Subpartida</th><th>Descripción</th><th>Fecha</th><th>Costo</th><th>Tiempo</th><th>Estado</th></tr></thead>
+            <tbody id="hist-tbody"></tbody>
+          </table>
+        </div>
+        <div id="hist-empty" style="display:none;padding:40px;text-align:center;color:var(--text-3);font-size:.82rem">Sin clasificaciones en este estado.</div>
+      </div>
+    </div>
+  </div>
 
-        // ── Tabs ──
-        const tabs = ['texto','url','archivo'];
-        function switchTab(tab) {
-            document.getElementById('input_type').value = tab;
-            tabs.forEach(t => {
-                document.getElementById('tab-'+t).className = t===tab?'tab-active px-5 py-2 rounded-lg text-sm font-medium transition-all':'tab-inactive px-5 py-2 rounded-lg text-sm font-medium transition-all';
-                document.getElementById('panel-'+t).classList.toggle('hidden',t!==tab);
-            });
-        }
+  <!-- PAGE: DETALLE -->
+  <div class="page" id="page-detalle">
+    <div class="content-area" style="padding-bottom:40px">
+      <button class="detail-back" onclick="route('/historial')">
+        <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></svg>
+        Volver al historial
+      </button>
+      <div id="detail-loading" style="color:var(--text-3);font-size:.82rem;padding:20px 0">Cargando...</div>
+      <div id="detail-content" style="display:none">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;flex-wrap:wrap">
+          <span id="detail-id" class="detail-id"></span>
+          <span id="detail-estado" class="status-dot"></span>
+          <span id="detail-fecha" style="font-size:.72rem;color:var(--text-3)"></span>
+        </div>
+        <div class="metrics" style="margin-bottom:14px">
+          <div class="metric"><div class="metric-lbl">Tiempo</div><div class="metric-val c-blue" id="d-t">—</div></div>
+          <div class="metric"><div class="metric-lbl">Costo COP</div><div class="metric-val c-green" id="d-cop">—</div></div>
+          <div class="metric"><div class="metric-lbl">Costo USD</div><div class="metric-val c-yellow" id="d-usd">—</div></div>
+          <div class="metric"><div class="metric-lbl">Tokens</div><div class="metric-val c-purple" id="d-tok">—</div></div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:12px">
+          <div class="rcard">
+            <div class="rcard-hd"><span class="tag">FICHA</span><span class="rcard-title">Producto</span></div>
+            <div class="rcard-bd"><pre class="ficha-pre" id="d-ficha"></pre></div>
+          </div>
+          <div class="rcard">
+            <div class="rcard-hd"><span class="tag tag-y">PASO 1</span><span class="rcard-title">Investigador DIAN</span></div>
+            <div class="rcard-bd"><div class="md" id="d-inv"></div></div>
+          </div>
+          <div class="rcard">
+            <div class="rcard-hd"><span class="tag tag-b">PASO 2</span><span class="rcard-title">Clasificador</span></div>
+            <div class="rcard-bd"><div class="md" id="d-cls"></div></div>
+          </div>
+          <div class="rcard">
+            <div class="rcard-hd"><span class="tag tag-p">PASO 3</span><span class="rcard-title">Validador</span></div>
+            <div class="rcard-bd"><div class="md" id="d-val"></div></div>
+          </div>
+          <div class="rcard">
+            <div class="rcard-hd"><span class="rcard-title">Cambiar estado</span></div>
+            <div class="rcard-bd">
+              <label class="flabel">Notas opcionales</label>
+              <textarea id="d-notas" rows="2" placeholder="Observaciones..."></textarea>
+              <div class="dec-actions">
+                <button onclick="setEstadoDetalle('aprobada')" class="btn btn-ok"><svg width="11" height="11" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>Aprobar</button>
+                <button onclick="setEstadoDetalle('rechazada')" class="btn btn-err"><svg width="11" height="11" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>Rechazar</button>
+                <button onclick="setEstadoDetalle('investigar')" class="btn btn-warn"><svg width="11" height="11" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>Investigar más</button>
+              </div>
+              <div class="dec-fb" id="d-fb"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
 
-        // File preview
-        const fileInput = document.getElementById('ficha_archivo');
-        fileInput.addEventListener('change', function(){
-            const f=this.files[0]; if(!f)return;
-            document.getElementById('upload-placeholder').classList.add('hidden');
-            document.getElementById('file-preview').classList.remove('hidden');
-            document.getElementById('file-name').textContent=f.name;
-            document.getElementById('file-icon').className=f.name.toLowerCase().endsWith('.pdf')?'fas fa-file-pdf text-4xl text-red-400 mb-2':'fas fa-file-image text-4xl text-blue-400 mb-2';
-        });
-        const dropZone=document.getElementById('drop-zone');
-        ['dragenter','dragover'].forEach(e=>dropZone.addEventListener(e,ev=>{ev.preventDefault();dropZone.classList.add('border-blue-500')}));
-        ['dragleave','drop'].forEach(e=>dropZone.addEventListener(e,ev=>{ev.preventDefault();dropZone.classList.remove('border-blue-500')}));
-        dropZone.addEventListener('drop',ev=>{const f=ev.dataTransfer.files[0];if(f){const dt=new DataTransfer();dt.items.add(f);fileInput.files=dt.files;fileInput.dispatchEvent(new Event('change'))}});
+  <!-- PAGE: IMPORTAR -->
+  <div class="page" id="page-importar">
+    <div class="content-area" style="padding-bottom:40px">
+      <div class="import-grid">
+        <div class="card">
+          <div class="card-hd"><span class="card-title">Importar base de conocimiento</span></div>
+          <div class="card-bd">
+            <p style="font-size:.79rem;color:var(--text-3);line-height:1.75;margin-bottom:13px">Suba un CSV o JSON con clasificaciones previas para enriquecer el contexto del clasificador.</p>
+            <form id="form-imp" enctype="multipart/form-data">
+              <label class="dropzone" id="imp-drop" for="imp-file" style="margin-bottom:11px">
+                <div id="imp-ph">
+                  <svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                  <p>CSV o JSON</p>
+                </div>
+                <p id="imp-fname" style="display:none;font-size:.81rem;color:#fff"></p>
+                <input type="file" name="archivo" id="imp-file" accept=".csv,.json" style="display:none">
+              </label>
+              <button type="submit" class="btn btn-primary btn-full">
+                <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                Importar registros
+              </button>
+            </form>
+            <div id="imp-fb" style="display:none;margin-top:11px;font-size:.79rem;padding:8px 11px;border-radius:var(--r)"></div>
+          </div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:12px">
+          <div class="card">
+            <div class="card-hd"><span class="card-title">Base de conocimiento</span></div>
+            <div class="card-bd">
+              <div class="kb-big" id="kb-count">—</div>
+              <div style="font-size:.76rem;color:var(--text-3);margin-top:4px">clasificaciones almacenadas</div>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-hd"><span class="card-title">Esquema esperado</span></div>
+            <div class="card-bd" style="padding:13px">
+              <pre class="schema-pre"><span class="k">producto</span>      <span class="v">string</span>  requerido
+<span class="k">subpartida</span>    <span class="v">string</span>  requerido
+<span class="k">gravamen</span>      <span class="v">number</span>  opcional
+<span class="k">justificacion</span> <span class="v">string</span>  opcional
+<span class="k">fuente</span>        <span class="v">string</span>  opcional</pre>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
 
-        // ── Classification ──
-        let currentId = '';
-        let chatHistory = [];
-        let currentContext = {ficha_tecnica:'',clasificacion:'',validacion:'',investigacion:''};
+</div><!-- /.app -->
 
-        document.getElementById('form-clasificar').addEventListener('submit', async function(e) {
-            e.preventDefault();
-            const btn=document.getElementById('btn-clasificar'), loading=document.getElementById('loading'), results=document.getElementById('results'), errorBox=document.getElementById('error-box');
-            btn.disabled=true; btn.textContent='Procesando...';
-            loading.classList.remove('hidden'); results.classList.add('hidden'); errorBox.classList.add('hidden');
+<!-- FIXED BOTTOM INPUT -->
+<div class="input-dock" id="input-dock">
+  <form id="form-clas" enctype="multipart/form-data">
+    <input type="hidden" name="input_type" id="input_type" value="texto">
+    <input type="hidden" name="ficha_url"  id="ficha_url"  value="">
+    <div class="input-pill" id="ubox">
+      <textarea name="ficha_texto" id="ficha_texto" rows="1"
+        placeholder="Pegue la ficha técnica, descripción, o una URL..."></textarea>
+      <div class="input-bar">
+        <button type="button" class="icon-btn" id="btn-attach" title="Adjuntar PDF o imagen">
+          <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>
+        </button>
+        <input type="file" name="ficha_archivo" id="ficha_archivo" accept=".pdf,.png,.jpg,.jpeg,.webp,.gif,.bmp,image/*" style="display:none">
+        <div id="file-chip" style="display:none" class="chip">
+          <svg width="11" height="11" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+          <span id="file-name"></span>
+          <button type="button" class="x" id="rm-file">×</button>
+        </div>
+        <div id="url-chip" style="display:none" class="chip">
+          <svg width="11" height="11" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+          <span>URL detectada</span>
+          <button type="button" class="x" id="rm-url">×</button>
+        </div>
+        <span class="bar-hint" id="bar-hint">Texto, URL o archivo</span>
+        <button type="submit" id="btn-clas" class="send-btn">
+          <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+          Clasificar
+        </button>
+      </div>
+    </div>
+  </form>
+</div>
 
-            const s1=document.getElementById('step-1'),s2=document.getElementById('step-2'),s3=document.getElementById('step-3');
-            s1.innerHTML='<i class="fas fa-circle-notch fa-spin text-yellow-400"></i><span class="text-gray-300">Investigador buscando resoluciones DIAN + Perplexity...</span>';
-            s2.innerHTML='<i class="fas fa-circle text-gray-700 text-xs"></i><span class="text-gray-600">Clasificador pendiente...</span>';
-            s3.innerHTML='<i class="fas fa-circle text-gray-700 text-xs"></i><span class="text-gray-600">Validador pendiente...</span>';
-            setTimeout(()=>{s1.innerHTML='<i class="fas fa-check-circle text-green-400"></i><span class="text-gray-300">Investigador completado</span>';s2.innerHTML='<i class="fas fa-circle-notch fa-spin text-blue-400"></i><span class="text-gray-300">Clasificador analizando...</span>';},25000);
-            setTimeout(()=>{s2.innerHTML='<i class="fas fa-check-circle text-green-400"></i><span class="text-gray-300">Clasificador completado</span>';s3.innerHTML='<i class="fas fa-circle-notch fa-spin text-purple-400"></i><span class="text-gray-300">Validador verificando...</span>';},50000);
+<!-- AUTH PAGE (full screen) -->
+<div class="auth-page" id="auth-overlay">
+  <!-- Header -->
+  <div class="auth-ph">
+    <svg class="auth-ph-logo" viewBox="0 0 126 62" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <polyline points="2,58 21,4 40,58" stroke="currentColor" stroke-width="5.5" stroke-linecap="round" stroke-linejoin="round"/>
+      <line x1="11" y1="38" x2="31" y2="38" stroke="currentColor" stroke-width="5.5" stroke-linecap="round"/>
+      <path d="M 81 17 A 22 22 0 1 0 81 45" stroke="currentColor" stroke-width="5.5" stroke-linecap="round" fill="none"/>
+      <polyline points="85,58 104,4 123,58" stroke="currentColor" stroke-width="5.5" stroke-linecap="round" stroke-linejoin="round"/>
+      <line x1="92" y1="38" x2="116" y2="38" stroke="currentColor" stroke-width="5.5" stroke-linecap="round"/>
+    </svg>
+    <button class="auth-close" onclick="closeAuthModal()" title="Cerrar">
+      <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+        <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+      </svg>
+    </button>
+  </div>
 
-            try {
-                const formData=new FormData(this);
-                const resp=await fetch('/clasificar',{method:'POST',body:formData});
-                const data=await resp.json();
-                if(!resp.ok) throw new Error(data.error||'Error');
+  <!-- Body -->
+  <div class="auth-body">
 
-                currentId=data.id||'';
-                const inputType=document.getElementById('input_type').value;
-                const fichaBox=document.getElementById('ficha-extraida-box');
-                if(inputType!=='texto'){document.getElementById('ficha-extraida').textContent=data.ficha_tecnica;fichaBox.classList.remove('hidden')}else{fichaBox.classList.add('hidden')}
+    <!-- Step 1: Email -->
+    <div class="auth-inner" id="auth-step-email">
+      <div class="auth-title">Inicia sesión en tu cuenta</div>
+      <div class="auth-subtitle" id="auth-sub">Ingresa tu correo para recibir un código de acceso.</div>
+      <input class="auth-input" type="email" id="auth-email" placeholder="correo@ejemplo.com"
+             autocomplete="email" onkeydown="if(event.key==='Enter')authSendCode()">
+      <button class="auth-primary" id="auth-send-btn" onclick="authSendCode()">Continuar</button>
+      <div class="auth-err" id="auth-err-1"></div>
+    </div>
 
-                ['result-clasificacion','result-validacion','result-investigacion'].forEach(id=>{document.getElementById(id).textContent=''});
-                document.getElementById('result-investigacion').insertAdjacentHTML('afterbegin',data.investigacion_html);
-                document.getElementById('result-clasificacion').insertAdjacentHTML('afterbegin',data.clasificacion_html);
-                document.getElementById('result-validacion').insertAdjacentHTML('afterbegin',data.validacion_html);
+    <!-- Step 2: Code -->
+    <div class="auth-inner" id="auth-step-code" style="display:none">
+      <div class="auth-title">Revisa tu correo</div>
+      <div class="auth-subtitle">Ingresa el código de 6 dígitos enviado a <strong id="auth-email-shown"></strong></div>
+      <div class="code-grid" id="code-grid">
+        <input maxlength="1" class="code-cell" inputmode="text">
+        <input maxlength="1" class="code-cell" inputmode="text">
+        <input maxlength="1" class="code-cell" inputmode="text">
+        <input maxlength="1" class="code-cell" inputmode="text">
+        <input maxlength="1" class="code-cell" inputmode="text">
+        <input maxlength="1" class="code-cell" inputmode="text">
+      </div>
+      <button class="auth-primary" id="auth-verify-btn" onclick="authVerifyCode()">Verificar código</button>
+      <div class="auth-err" id="auth-err-2"></div>
+      <div class="auth-ok" id="auth-ok-2">¡Acceso concedido! Bienvenido a ACA.</div>
+      <button class="auth-link" onclick="authGoBack()">← Cambiar correo</button>
+    </div>
 
-                // Metrics
-                document.getElementById('m-tiempo').textContent=data.tiempo_segundos+'s';
-                document.getElementById('m-cop').textContent='$'+Number(data.costo_cop).toLocaleString('es-CO',{minimumFractionDigits:0});
-                document.getElementById('m-usd').textContent='$'+Number(data.costo_usd).toFixed(4);
-                document.getElementById('m-tokens').textContent=Number(data.tokens).toLocaleString();
+  </div>
 
-                // Fuentes
-                const fBox=document.getElementById('fuentes-box'),fList=document.getElementById('fuentes-list');fList.textContent='';
-                if(data.fuentes&&data.fuentes.length>0){fBox.classList.remove('hidden');data.fuentes.forEach(f=>{const c=document.createElement('div');c.className='source-card';const a=document.createElement('a');a.href=f.url;a.target='_blank';a.rel='noopener noreferrer';a.className='text-sm text-blue-400 hover:text-blue-300 font-medium';a.textContent=f.title;c.appendChild(a);if(f.snippet){const s=document.createElement('p');s.className='text-xs text-gray-500 mt-1';s.textContent=f.snippet;c.appendChild(s)}fList.appendChild(c)})}else{fBox.classList.add('hidden')}
+  <div class="auth-footer-txt">Al continuar, aceptas los Términos de Servicio y la Política de Privacidad de ACA.</div>
+</div>
 
-                // Reset decision & chat
-                document.getElementById('estado-feedback').classList.add('hidden');
-                document.getElementById('notas-decision').value='';
-                document.getElementById('chat-messages').textContent='';
-                chatHistory=[];
-                currentContext={ficha_tecnica:data.ficha_tecnica,clasificacion:data.clasificacion_raw||'',validacion:data.validacion_raw||'',investigacion:data.investigacion_raw||''};
-                results.classList.remove('hidden');
-            } catch(err){document.getElementById('error-message').textContent=err.message;errorBox.classList.remove('hidden')} finally{loading.classList.add('hidden');btn.disabled=false;btn.innerHTML='<i class="fas fa-search"></i> Clasificar Producto'}
-        });
+<!-- USER MENU (simple dropdown) -->
+<div id="user-menu" style="display:none;position:fixed;top:56px;right:20px;z-index:150;
+  background:var(--card);border:1px solid var(--border-2);border-radius:10px;
+  padding:8px;min-width:180px;box-shadow:0 8px 32px rgba(0,0,0,0.3)">
+  <div style="padding:8px 10px 12px;border-bottom:1px solid var(--border)">
+    <div style="font-size:.78rem;font-weight:600;color:var(--text);margin-bottom:2px" id="menu-email"></div>
+    <div style="font-size:.72rem;color:var(--text-3)">Beta gratuito</div>
+  </div>
+  <button onclick="authLogout()" style="width:100%;background:none;border:none;cursor:pointer;
+    text-align:left;padding:9px 10px;color:var(--text-2);font-family:inherit;font-size:.79rem;
+    border-radius:6px;margin-top:4px;transition:background .15s"
+    onmouseover="this.style.background='rgba(128,128,128,0.1)'"
+    onmouseout="this.style.background='none'">Cerrar sesión</button>
+</div>
 
-        // ── Estado (aprobar/rechazar/investigar) ──
-        async function setEstado(estado) {
-            if(!currentId){alert('No hay clasificación activa.');return}
-            const notas=document.getElementById('notas-decision').value.trim();
-            const fb=document.getElementById('estado-feedback');
-            try {
-                const resp=await fetch('/estado',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id:currentId,estado,notas})});
-                const data=await resp.json();
-                if(!resp.ok) throw new Error(data.error||'Error');
-                const colors={aprobada:'text-green-400',rechazada:'text-red-400',investigar:'text-purple-400'};
-                const labels={aprobada:'APROBADA - Agregada a base de conocimiento',rechazada:'RECHAZADA',investigar:'MARCADA PARA INVESTIGACIÓN PROFUNDA'};
-                fb.className='mt-3 text-sm font-medium '+(colors[estado]||'');
-                fb.textContent='Clasificación '+labels[estado];
-                fb.classList.remove('hidden');
-            } catch(err){fb.className='mt-3 text-sm text-red-400';fb.textContent='Error: '+err.message;fb.classList.remove('hidden')}
-        }
+<script>
+// ── ROUTER ──
+let currentRoute='/';
+function route(path,push=true){
+  currentRoute=path;
+  if(push)history.pushState({path},'','#'+path);
+  document.querySelectorAll('.nav-pill').forEach(b=>b.classList.remove('active'));
+  const key=path.startsWith('/historial')?'/historial':path;
+  const navKey=key==='/'?'clasificar':key.slice(1);
+  const nb=document.getElementById('nav-'+navKey);
+  if(nb)nb.classList.add('active');
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  const dock=document.getElementById('input-dock');
+  if(path==='/'){
+    document.getElementById('page-clasificar').classList.add('active');
+    dock.style.display='block';
+  }else if(path==='/historial'){
+    document.getElementById('page-historial').classList.add('active');
+    dock.style.display='none';
+    loadHist(activePill);
+  }else if(path.startsWith('/historial/')){
+    const id=path.slice('/historial/'.length);
+    document.getElementById('page-detalle').classList.add('active');
+    dock.style.display='none';
+    loadDetalle(id);
+  }else if(path==='/importar'){
+    document.getElementById('page-importar').classList.add('active');
+    dock.style.display='none';
+    loadKB();
+  }
+}
+window.addEventListener('popstate',e=>{const h=location.hash.slice(1)||'/';route(h,false);});
+(function(){const h=location.hash.slice(1)||'/';route(h,false);})();
 
-        // ── Chat ──
-        function appendChatMessage(role,html){const c=document.getElementById('chat-messages'),b=document.createElement('div');b.className='chat-bubble '+(role==='user'?'chat-user':'chat-assistant');const l=document.createElement('div');l.className='text-xs font-semibold mb-1 '+(role==='user'?'text-blue-400':'text-green-400');l.textContent=role==='user'?'T\u00fa':'ACA';b.appendChild(l);const d=document.createElement('div');d.className='markdown-body text-sm text-gray-300';if(role==='user'){d.textContent=html}else{d.insertAdjacentHTML('afterbegin',html)}b.appendChild(d);c.appendChild(b);c.scrollTop=c.scrollHeight}
+// ── INPUT ──
+const fi=document.getElementById('ficha_archivo');
+const ubox=document.getElementById('ubox');
+const ta=document.getElementById('ficha_texto');
+ta.addEventListener('input',function(){
+  this.style.height='auto';
+  this.style.height=Math.min(this.scrollHeight,160)+'px';
+  syncInput();
+});
+function isURL(s){return /^https?:\/\/\S+/.test(s.trim())}
+function syncInput(){
+  const hasFile=fi.files&&fi.files.length>0;
+  const txt=ta.value.trim();
+  const hasURL=!hasFile&&isURL(txt);
+  if(hasFile){
+    document.getElementById('input_type').value='archivo';
+    document.getElementById('url-chip').style.display='none';
+    document.getElementById('bar-hint').textContent='Archivo adjunto';
+  }else if(hasURL){
+    document.getElementById('input_type').value='url';
+    document.getElementById('ficha_url').value=txt;
+    ta.value='';ta.style.height='auto';
+    document.getElementById('url-chip').style.display='inline-flex';
+    document.getElementById('file-chip').style.display='none';
+    document.getElementById('bar-hint').textContent='';
+  }else{
+    document.getElementById('input_type').value='texto';
+    document.getElementById('ficha_url').value='';
+    document.getElementById('url-chip').style.display='none';
+    document.getElementById('bar-hint').textContent='Texto, URL o archivo';
+  }
+}
+ta.addEventListener('paste',()=>setTimeout(syncInput,10));
+document.getElementById('btn-attach').addEventListener('click',()=>fi.click());
+fi.addEventListener('change',function(){
+  if(!this.files[0])return;
+  document.getElementById('file-name').textContent=this.files[0].name;
+  document.getElementById('file-chip').style.display='inline-flex';
+  document.getElementById('url-chip').style.display='none';
+  syncInput();
+});
+document.getElementById('rm-file').addEventListener('click',()=>{fi.value='';document.getElementById('file-chip').style.display='none';syncInput();});
+document.getElementById('rm-url').addEventListener('click',()=>{
+  document.getElementById('ficha_url').value='';
+  document.getElementById('url-chip').style.display='none';
+  document.getElementById('input_type').value='texto';
+  document.getElementById('bar-hint').textContent='Texto, URL o archivo';
+});
+['dragenter','dragover'].forEach(e=>ubox.addEventListener(e,ev=>{ev.preventDefault();ubox.classList.add('drag')}));
+['dragleave','drop'].forEach(e=>ubox.addEventListener(e,ev=>{ev.preventDefault();ubox.classList.remove('drag')}));
+ubox.addEventListener('drop',ev=>{const f=ev.dataTransfer.files[0];if(!f)return;const dt=new DataTransfer();dt.items.add(f);fi.files=dt.files;fi.dispatchEvent(new Event('change'));});
 
-        async function sendChatMessage(){
-            const input=document.getElementById('chat-input'),btn=document.getElementById('btn-chat'),cl=document.getElementById('chat-loading'),msg=input.value.trim();
-            if(!msg)return;appendChatMessage('user',msg);input.value='';btn.disabled=true;cl.classList.remove('hidden');
-            try{const r=await fetch('/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({message:msg,ficha_tecnica:currentContext.ficha_tecnica,clasificacion:currentContext.clasificacion,validacion:currentContext.validacion,investigacion:currentContext.investigacion,history:chatHistory})});const d=await r.json();if(!r.ok)throw new Error(d.error);appendChatMessage('assistant',d.reply_html);chatHistory.push({role:'user',content:msg},{role:'assistant',content:d.reply});if(chatHistory.length>20)chatHistory=chatHistory.slice(-20)}catch(e){appendChatMessage('assistant','<p class="text-red-400">Error: '+e.message+'</p>')}finally{btn.disabled=false;cl.classList.add('hidden')}
-        }
-        document.getElementById('btn-chat').addEventListener('click',sendChatMessage);
-        document.getElementById('chat-input').addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendChatMessage()}});
+// ── STEPS ──
+function setStep(n,st,txt){
+  const el=document.getElementById('s'+n),ic=document.getElementById('s'+n+'i'),lb=document.getElementById('s'+n+'t');
+  el.className='step '+(st==='running'?'running':st==='done'?'done':'');
+  ic.className='step-i '+(st==='r'||st==='running'?'r':st==='d'||st==='done'?'d':'w');
+  lb.textContent=txt;
+  if(st==='running')ic.innerHTML='<svg class="spin" width="10" height="10" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-6.22-8.56"/></svg>';
+  else if(st==='done')ic.innerHTML='<svg width="10" height="10" fill="none" stroke="currentColor" stroke-width="3" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>';
+  else ic.textContent=n;
+}
 
-        // ── Historial ──
-        async function loadHistorial(estado) {
-            const list=document.getElementById('historial-list'),empty=document.getElementById('historial-empty');
-            list.textContent='';empty.classList.add('hidden');
-            let url='/historial';if(estado)url+='?estado='+estado;
-            try{const r=await fetch(url);const d=await r.json();
-                if(!d.registros||d.registros.length===0){empty.classList.remove('hidden');return}
-                d.registros.forEach(reg=>{
-                    const row=document.createElement('div');row.className='hist-row flex items-center justify-between px-3';
-                    const left=document.createElement('div');left.className='flex-1 min-w-0';
-                    const title=document.createElement('p');title.className='text-sm text-gray-300 truncate';title.textContent=(reg.subpartida||'?')+' - '+(reg.ficha_tecnica||'').substring(0,80);
-                    const meta=document.createElement('p');meta.className='text-xs text-gray-500';
-                    const fecha=new Date(reg.created_at).toLocaleDateString('es-CO',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'});
-                    meta.textContent=fecha+' | $'+Number(reg.costo_cop||0).toLocaleString('es-CO')+' COP | '+Number(reg.tiempo_segundos||0).toFixed(0)+'s';
-                    left.appendChild(title);left.appendChild(meta);
+// ── CLASIFICAR ──
+let curId='',chatHist=[],ctx={};
+document.getElementById('form-clas').addEventListener('submit',async function(e){
+  e.preventDefault();
+  const btn=document.getElementById('btn-clas'),lc=document.getElementById('lcard'),
+        res=document.getElementById('results'),eb=document.getElementById('err-box');
+  document.getElementById('empty-state').style.display='none';
+  btn.disabled=true;
+  btn.innerHTML='<svg class="spin" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-6.22-8.56"/></svg> Clasificando...';
+  lc.classList.add('show');res.classList.remove('show');eb.classList.remove('show');
+  setStep(1,'running','Investigador — buscando resoluciones DIAN + Perplexity');
+  setStep(2,'w','Clasificador — pendiente');
+  setStep(3,'w','Validador — pendiente');
+  const t1=setTimeout(()=>{setStep(1,'done','Investigador — completado');setStep(2,'running','Clasificador — analizando con base de conocimiento');},22000);
+  const t2=setTimeout(()=>{setStep(2,'done','Clasificador — completado');setStep(3,'running','Validador — verificando subpartida');},46000);
+  try{
+    const r=await fetch('/clasificar',{method:'POST',body:new FormData(this)});
+    const d=await r.json();clearTimeout(t1);clearTimeout(t2);
+    if(r.status===402||d.error==='limit_reached'){
+      lc.classList.remove('show');btn.disabled=false;btn.innerHTML='<svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>';
+      openAuthModal('Agotaste tus '+_anonLimit+' análisis gratuitos. Regístrate gratis para continuar.');
+      return;
+    }
+    if(!r.ok)throw new Error(d.error||'Error desconocido');
+    setStep(1,'done','Investigador — completado');
+    setStep(2,'done','Clasificador — completado');
+    setStep(3,'done','Validador — completado');
+    curId=d.id||'';
+    const itype=document.getElementById('input_type').value;
+    const fb=document.getElementById('ficha-box');
+    if(itype!=='texto'){document.getElementById('ficha-txt').textContent=d.ficha_tecnica;fb.style.display='block';}else{fb.style.display='none';}
+    document.getElementById('r-inv').innerHTML=d.investigacion_html;
+    document.getElementById('r-cls').innerHTML=d.clasificacion_html;
+    document.getElementById('r-val').innerHTML=d.validacion_html;
+    document.getElementById('m-t').textContent=d.tiempo_segundos+'s';
+    document.getElementById('m-cop').textContent='$'+Number(d.costo_cop).toLocaleString('es-CO',{minimumFractionDigits:0});
+    document.getElementById('m-usd').textContent='$'+Number(d.costo_usd).toFixed(4);
+    document.getElementById('m-tok').textContent=Number(d.tokens).toLocaleString();
+    const fw=document.getElementById('fuentes-wrap'),fl=document.getElementById('fuentes-list');fl.innerHTML='';
+    if(d.fuentes&&d.fuentes.length>0){fw.style.display='block';d.fuentes.forEach(f=>{const it=document.createElement('div');it.className='src-item';const a=document.createElement('a');a.href=f.url;a.target='_blank';a.rel='noopener noreferrer';a.textContent=f.title;it.appendChild(a);if(f.snippet){const p=document.createElement('p');p.textContent=f.snippet;it.appendChild(p)}fl.appendChild(it)});}else{fw.style.display='none';}
+    document.getElementById('dec-fb').style.display='none';
+    document.getElementById('dec-notas').value='';
+    document.getElementById('chat-msgs').innerHTML='';
+    chatHist=[];
+    ctx={ficha_tecnica:d.ficha_tecnica,clasificacion:d.clasificacion_raw||'',validacion:d.validacion_raw||'',investigacion:d.investigacion_raw||''};
+    res.classList.add('show');
+    document.getElementById('app').scrollTop=0;
+  }catch(err){
+    document.getElementById('err-msg').textContent=err.message;eb.classList.add('show');
+    document.getElementById('empty-state').style.display='flex';
+  }finally{
+    lc.classList.remove('show');btn.disabled=false;
+    btn.innerHTML='<svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg> Clasificar';
+  }
+});
 
-                    const badge=document.createElement('span');badge.className='status-badge status-'+(reg.estado||'pendiente');badge.textContent=reg.estado||'pendiente';
+async function setEstado(estado){
+  if(!curId){alert('Sin clasificación activa.');return;}
+  const notas=document.getElementById('dec-notas').value.trim();
+  const fb=document.getElementById('dec-fb');
+  try{
+    const r=await fetch('/estado',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id:curId,estado,notas})});
+    const d=await r.json();if(!r.ok)throw new Error(d.error||'Error');
+    const msgs={aprobada:'Aprobada — agregada a la base de conocimiento',rechazada:'Rechazada',investigar:'Marcada para investigación adicional'};
+    fb.className='dec-fb ok';fb.textContent=msgs[estado];fb.style.display='block';
+  }catch(err){fb.className='dec-fb err';fb.textContent='Error: '+err.message;fb.style.display='block';}
+}
 
-                    row.appendChild(left);row.appendChild(badge);
-                    list.appendChild(row);
-                });
-            }catch(e){empty.textContent='Error cargando historial';empty.classList.remove('hidden')}
-        }
+// ── CHAT ──
+function addMsg(role,html){
+  const w=document.getElementById('chat-msgs'),m=document.createElement('div');m.className='chat-msg '+role;
+  const rl=document.createElement('div');rl.className='chat-role';rl.textContent=role==='user'?'Tú':'ACA';
+  const bd=document.createElement('div');bd.className='chat-body md';
+  if(role==='user')bd.textContent=html;else bd.innerHTML=html;
+  m.appendChild(rl);m.appendChild(bd);w.appendChild(m);w.scrollTop=w.scrollHeight;
+}
+async function sendChat(){
+  const inp=document.getElementById('chat-in'),btn=document.getElementById('btn-chat'),cl=document.getElementById('chat-load'),msg=inp.value.trim();
+  if(!msg)return;addMsg('user',msg);inp.value='';btn.disabled=true;cl.style.display='flex';
+  try{const r=await fetch('/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({message:msg,...ctx,history:chatHist})});const d=await r.json();if(!r.ok)throw new Error(d.error);addMsg('bot',d.reply_html);chatHist.push({role:'user',content:msg},{role:'assistant',content:d.reply});if(chatHist.length>20)chatHist=chatHist.slice(-20);}
+  catch(e){addMsg('bot','<p style="color:var(--red)">Error: '+e.message+'</p>');}
+  finally{btn.disabled=false;cl.style.display='none';}
+}
+document.getElementById('btn-chat').addEventListener('click',sendChat);
+document.getElementById('chat-in').addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendChat();}});
 
-        // ── Importar ──
-        document.getElementById('form-importar').addEventListener('submit',async function(e){
-            e.preventDefault();const fb=document.getElementById('import-result');fb.classList.add('hidden');
-            const formData=new FormData(this);
-            try{const r=await fetch('/importar',{method:'POST',body:formData});const d=await r.json();
-                if(!r.ok)throw new Error(d.error);
-                fb.className='mt-4 text-sm text-green-400';fb.textContent='Importados: '+d.importados+' de '+d.total_enviados+' registros';fb.classList.remove('hidden');loadKBStats();
-            }catch(e){fb.className='mt-4 text-sm text-red-400';fb.textContent='Error: '+e.message;fb.classList.remove('hidden')}
-        });
+// ── HISTORIAL ──
+let activePill;
+function setPill(id){document.querySelectorAll('.fpill').forEach(p=>p.classList.remove('active'));(document.getElementById(id?'fp-'+id:'fp-all')||document.getElementById('fp-all')).classList.add('active');}
+async function loadHist(estado){
+  activePill=estado;setPill(estado);
+  const tbody=document.getElementById('hist-tbody'),empty=document.getElementById('hist-empty');
+  tbody.innerHTML='';empty.style.display='none';
+  try{
+    const r=await fetch('/historial'+(estado?'?estado='+estado:''));const d=await r.json();
+    if(!d.registros||d.registros.length===0){empty.style.display='block';return;}
+    d.registros.forEach(reg=>{
+      const tr=document.createElement('tr');
+      const fecha=new Date(reg.created_at).toLocaleDateString('es-CO',{day:'2-digit',month:'short',year:'2-digit',hour:'2-digit',minute:'2-digit'});
+      const est=reg.estado||'pendiente';
+      tr.innerHTML=`<td><span class="mono">${reg.subpartida||'—'}</span></td>
+        <td><span class="tdesc">${(reg.ficha_tecnica||'').substring(0,80)}</span></td>
+        <td style="font-size:.72rem;color:var(--text-3);white-space:nowrap">${fecha}</td>
+        <td style="font-family:'JetBrains Mono',monospace;font-size:.75rem;color:var(--green)">$${Number(reg.costo_cop||0).toLocaleString('es-CO')}</td>
+        <td style="font-family:'JetBrains Mono',monospace;font-size:.75rem;color:var(--text-3)">${Number(reg.tiempo_segundos||0).toFixed(0)}s</td>
+        <td><span class="status-dot ${est}">${est}</span></td>`;
+      tr.addEventListener('click',()=>route('/historial/'+reg.id));
+      tbody.appendChild(tr);
+    });
+  }catch(e){empty.textContent='Error cargando historial';empty.style.display='block';}
+}
 
-        async function loadKBStats(){try{const r=await fetch('/conocimiento/stats');const d=await r.json();document.getElementById('kb-count').textContent=d.total_registros||0}catch(e){}}
-    </script>
+// ── DETALLE ──
+let detailId='';
+async function loadDetalle(id){
+  detailId=id;
+  document.getElementById('detail-loading').style.display='block';
+  document.getElementById('detail-content').style.display='none';
+  try{
+    const r=await fetch('/clasificacion/'+id);
+    if(!r.ok)throw new Error('Clasificación no encontrada');
+    const d=await r.json();
+    document.getElementById('detail-id').textContent=d.id.substring(0,8).toUpperCase()+'…';
+    const est=d.estado||'pendiente';
+    const estEl=document.getElementById('detail-estado');estEl.className='status-dot '+est;estEl.textContent=est;
+    document.getElementById('detail-fecha').textContent=new Date(d.created_at).toLocaleString('es-CO',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'});
+    document.getElementById('d-t').textContent=(d.tiempo_segundos||0)+'s';
+    document.getElementById('d-cop').textContent='$'+Number(d.costo_cop||0).toLocaleString('es-CO',{minimumFractionDigits:0});
+    document.getElementById('d-usd').textContent='$'+Number(d.costo_usd||0).toFixed(4);
+    document.getElementById('d-tok').textContent=Number(d.tokens_total||0).toLocaleString();
+    document.getElementById('d-ficha').textContent=d.ficha_tecnica||'';
+    document.getElementById('d-inv').innerHTML=d.investigacion_html||mdToHtml(d.investigacion||'');
+    document.getElementById('d-cls').innerHTML=d.clasificacion_html||mdToHtml(d.clasificacion||'');
+    document.getElementById('d-val').innerHTML=d.validacion_html||mdToHtml(d.validacion||'');
+    document.getElementById('d-fb').style.display='none';
+    document.getElementById('d-notas').value='';
+    document.getElementById('detail-loading').style.display='none';
+    document.getElementById('detail-content').style.display='block';
+  }catch(err){document.getElementById('detail-loading').textContent='Error: '+err.message;}
+}
+async function setEstadoDetalle(estado){
+  if(!detailId)return;
+  const notas=document.getElementById('d-notas').value.trim();
+  const fb=document.getElementById('d-fb');
+  try{
+    const r=await fetch('/estado',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id:detailId,estado,notas})});
+    const d=await r.json();if(!r.ok)throw new Error(d.error||'Error');
+    fb.className='dec-fb ok';
+    fb.textContent={aprobada:'Aprobada — agregada a la base de conocimiento',rechazada:'Rechazada',investigar:'Marcada para investigación adicional'}[estado];
+    fb.style.display='block';
+    const estEl=document.getElementById('detail-estado');estEl.className='status-dot '+estado;estEl.textContent=estado;
+  }catch(err){fb.className='dec-fb err';fb.textContent='Error: '+err.message;fb.style.display='block';}
+}
+function mdToHtml(txt){
+  if(!txt)return '';
+  return txt.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    .replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>')
+    .replace(/\*(.+?)\*/g,'<em>$1</em>')
+    .replace(/`(.+?)`/g,'<code>$1</code>')
+    .replace(/\n/g,'<br>');
+}
+
+// ── IMPORTAR ──
+document.getElementById('imp-file').addEventListener('change',function(){
+  const f=this.files[0];if(!f)return;
+  document.getElementById('imp-ph').style.display='none';
+  document.getElementById('imp-fname').style.display='block';
+  document.getElementById('imp-fname').textContent=f.name;
+});
+document.getElementById('form-imp').addEventListener('submit',async function(e){
+  e.preventDefault();const fb=document.getElementById('imp-fb');fb.style.display='none';
+  try{
+    const r=await fetch('/importar',{method:'POST',body:new FormData(this)});const d=await r.json();
+    if(!r.ok)throw new Error(d.error);
+    Object.assign(fb.style,{display:'block',background:'rgba(74,222,128,.07)',color:'var(--green)',border:'1px solid rgba(74,222,128,.17)',borderRadius:'var(--r)'});
+    fb.textContent='Importados '+d.importados+' de '+d.total_enviados+' registros.';loadKB();
+  }catch(e){
+    Object.assign(fb.style,{display:'block',background:'rgba(248,113,113,.07)',color:'var(--red)',border:'1px solid rgba(248,113,113,.17)',borderRadius:'var(--r)'});
+    fb.textContent='Error: '+e.message;
+  }
+});
+async function loadKB(){try{const r=await fetch('/conocimiento/stats');const d=await r.json();document.getElementById('kb-count').textContent=d.total_registros||0;}catch(e){}}
+
+// ── AUTH ──
+let _authEmail = '';
+let _currentUser = null;
+let _anonUsed = 0;
+let _anonLimit = 3;
+let _isAdmin = false;
+
+async function initAuth(){
+  try{
+    const r = await fetch('/auth/status');
+    const d = await r.json();
+    _anonUsed = d.anon_used || 0;
+    _anonLimit = d.limit || 3;
+    _currentUser = d.user || null;
+    _isAdmin = d.is_admin || false;
+    renderAuthState();
+  }catch(e){}
+}
+
+function renderAuthState(){
+  const loginBtn = document.getElementById('login-btn');
+  const pill = document.getElementById('user-pill');
+  const navHistorial = document.getElementById('nav-historial');
+  if(_currentUser){
+    loginBtn.style.display = 'none';
+    pill.style.display = 'flex';
+    navHistorial.style.display = '';
+    document.getElementById('nav-importar').style.display = _isAdmin ? '' : 'none';
+    const email = _currentUser.email || '';
+    document.getElementById('user-avatar').textContent = email[0].toUpperCase();
+    document.getElementById('user-email-short').textContent = email.length > 20 ? email.slice(0,18)+'…' : email;
+    document.getElementById('menu-email').textContent = email;
+  } else {
+    pill.style.display = 'none';
+    loginBtn.style.display = 'block';
+    navHistorial.style.display = 'none';
+    document.getElementById('nav-importar').style.display = 'none';
+    if(currentRoute.startsWith('/historial') || currentRoute.startsWith('/importar')) route('/');
+  }
+}
+
+function openAuthModal(msg){
+  const sub = document.getElementById('auth-sub');
+  if(msg) sub.textContent = msg;
+  else sub.textContent = 'Ingresa tu correo para recibir un código de acceso gratuito.';
+  document.getElementById('auth-step-email').style.display = 'block';
+  document.getElementById('auth-step-code').style.display = 'none';
+  document.getElementById('auth-email').value = '';
+  document.getElementById('auth-err-1').style.display = 'none';
+  document.getElementById('auth-overlay').classList.add('open');
+  setTimeout(()=>document.getElementById('auth-email').focus(), 200);
+}
+function closeAuthModal(){
+  document.getElementById('auth-overlay').classList.remove('open');
+}
+document.addEventListener('keydown', e=>{ if(e.key==='Escape') closeAuthModal(); });
+
+async function authSendCode(){
+  const email = document.getElementById('auth-email').value.trim();
+  const btn = document.getElementById('auth-send-btn');
+  const err = document.getElementById('auth-err-1');
+  err.style.display = 'none';
+  if(!email || !email.includes('@')){ err.textContent='Correo inválido.'; err.style.display='block'; return; }
+  btn.disabled = true; btn.textContent = 'Enviando...';
+  try{
+    const r = await fetch('/auth/register', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({email})});
+    const d = await r.json();
+    if(!r.ok){ err.textContent = d.error||'Error al enviar.'; err.style.display='block'; return; }
+    _authEmail = email;
+    document.getElementById('auth-email-shown').textContent = email;
+    document.getElementById('auth-step-email').style.display = 'none';
+    document.getElementById('auth-step-code').style.display = 'block';
+    document.getElementById('auth-err-2').style.display = 'none';
+    document.getElementById('auth-ok-2').style.display = 'none';
+    // reset code cells
+    document.querySelectorAll('.code-cell').forEach(i=>i.value='');
+    setTimeout(()=>document.querySelector('.code-cell').focus(), 100);
+  }catch(e){ err.textContent='Error de red.'; err.style.display='block'; }
+  finally{ btn.disabled=false; btn.textContent='Enviar código'; }
+}
+
+// Code grid navigation
+document.addEventListener('DOMContentLoaded', ()=>{
+  document.querySelectorAll('.code-cell').forEach((inp, idx, cells)=>{
+    inp.addEventListener('input', e=>{
+      const v = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g,'');
+      e.target.value = v;
+      if(v && idx < cells.length-1) cells[idx+1].focus();
+    });
+    inp.addEventListener('keydown', e=>{
+      if(e.key==='Backspace' && !inp.value && idx>0) cells[idx-1].focus();
+      if(e.key==='Enter') authVerifyCode();
+    });
+    inp.addEventListener('paste', e=>{
+      e.preventDefault();
+      const txt = (e.clipboardData||window.clipboardData).getData('text').toUpperCase().replace(/[^A-Z0-9]/g,'');
+      cells.forEach((c,i)=>{ c.value = txt[i]||''; });
+      cells[Math.min(txt.length, cells.length-1)].focus();
+    });
+  });
+});
+
+async function authVerifyCode(){
+  const codigo = Array.from(document.querySelectorAll('.code-cell')).map(i=>i.value).join('').toUpperCase();
+  const btn = document.getElementById('auth-verify-btn');
+  const err = document.getElementById('auth-err-2');
+  const ok  = document.getElementById('auth-ok-2');
+  err.style.display='none'; ok.style.display='none';
+  if(codigo.length < 6){ err.textContent='Completa los 6 dígitos.'; err.style.display='block'; return; }
+  btn.disabled=true; btn.textContent='Verificando...';
+  try{
+    const r = await fetch('/auth/verify', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({email:_authEmail, codigo})});
+    const d = await r.json();
+    if(!r.ok){ err.textContent=d.error||'Código incorrecto.'; err.style.display='block'; return; }
+    _currentUser = d.user;
+    _isAdmin = d.is_admin || false;
+    _anonUsed = 0;
+    ok.style.display='block';
+    renderAuthState();
+    setTimeout(closeAuthModal, 1200);
+  }catch(e){ err.textContent='Error de red.'; err.style.display='block'; }
+  finally{ btn.disabled=false; btn.textContent='Verificar'; }
+}
+
+function authGoBack(){
+  document.getElementById('auth-step-email').style.display='block';
+  document.getElementById('auth-step-code').style.display='none';
+}
+
+function openUserMenu(){
+  const m = document.getElementById('user-menu');
+  m.style.display = m.style.display==='none' ? 'block' : 'none';
+}
+document.addEventListener('click', e=>{
+  const m = document.getElementById('user-menu');
+  if(!document.getElementById('user-pill').contains(e.target)) m.style.display='none';
+});
+
+async function authLogout(){
+  await fetch('/auth/logout', {method:'POST'});
+  _currentUser=null; _anonUsed=0;
+  renderAuthState();
+  document.getElementById('user-menu').style.display='none';
+}
+
+// Init on load
+initAuth();
+
+// ── THEME TOGGLE ──
+function applyTheme(t){
+  document.documentElement.setAttribute('data-theme', t);
+  document.getElementById('icon-sun').style.display  = t==='light' ? 'none'  : 'block';
+  document.getElementById('icon-moon').style.display = t==='light' ? 'block' : 'none';
+  localStorage.setItem('aca-theme', t);
+}
+function toggleTheme(){
+  applyTheme(document.documentElement.getAttribute('data-theme')==='light' ? 'dark' : 'light');
+}
+// init theme from storage or system preference
+(function(){
+  const saved = localStorage.getItem('aca-theme');
+  const pref  = saved || (window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark');
+  applyTheme(pref);
+})();
+</script>
 </body>
 </html>

@@ -12,16 +12,19 @@ import ipaddress
 import json
 import os
 import re
+import secrets
 import socket
+import string
 import time
 import traceback
+import uuid
 from pathlib import Path
 from urllib.parse import urlparse
 
 import bleach
 import markdown
 import requests as http_requests
-from flask import Flask, jsonify, render_template, request
+from flask import Flask, jsonify, render_template, request, session, make_response
 from markupsafe import escape as html_escape
 from openai import OpenAI
 from PyPDF2 import PdfReader
@@ -30,11 +33,14 @@ from agente_clasificador import clasificar_producto
 from agente_investigador import investigar_producto
 from agente_validador import validar_clasificacion
 from config import (
+    ADMIN_EMAILS,
     ALLOWED_FILE_EXTENSIONS,
     ALLOWED_IMAGE_EXTENSIONS,
+    FREE_ANON_LIMIT,
     MODEL,
     OPENROUTER_API_KEY,
     OPENROUTER_BASE_URL,
+    SECRET_KEY,
     UPLOAD_FOLDER,
     VISION_MODEL,
 )
@@ -42,16 +48,24 @@ from database import (
     actualizar_estado,
     buscar_conocimiento,
     calcular_costo_total,
+    crear_verificacion,
+    get_anon_count,
+    get_or_create_usuario,
+    get_usuario,
     guardar_clasificacion,
     importar_conocimiento,
+    increment_anon_count,
     listar_clasificaciones,
     obtener_clasificacion,
     stats_conocimiento,
+    verificar_codigo,
 )
+from email_sender import enviar_codigo_verificacion
 from pdf_loader import find_relevant_chapters, load_pdf
 
 app = Flask(__name__)
 app.config["MAX_CONTENT_LENGTH"] = 32 * 1024 * 1024
+app.secret_key = SECRET_KEY
 
 print("Cargando Arancel de Aduanas (Decreto 1881/2021)...")
 ARANCEL_TEXT = load_pdf()
@@ -225,6 +239,17 @@ def index():
 
 @app.route("/clasificar", methods=["POST"])
 def clasificar():
+    # ── Límite de uso anónimo ──
+    user = _current_user()
+    anon_id = _get_anon_id()
+    if not user:
+        used = get_anon_count(anon_id)
+        if used >= FREE_ANON_LIMIT:
+            return jsonify({
+                "error": "limit_reached",
+                "anon_used": used,
+                "limit": FREE_ANON_LIMIT,
+            }), 402
     try:
         start_time = time.time()
         input_type = request.form.get("input_type", "texto")
@@ -301,7 +326,12 @@ def clasificar():
             fuentes=res_inv.get("fuentes", []),
         )
 
-        return jsonify({
+        # Incrementar contador anónimo si aplica
+        new_anon_count = 0
+        if not user:
+            new_anon_count = increment_anon_count(anon_id)
+
+        resp = make_response(jsonify({
             "id": registro.get("id", ""),
             "ficha_tecnica": str(html_escape(ficha_tecnica)),
             "investigacion_html": _render_markdown_safe(investigacion),
@@ -316,7 +346,12 @@ def clasificar():
             "costo_cop": costos["costo_cop"],
             "tiempo_segundos": elapsed,
             "precedentes_usados": len(buscar_conocimiento(ficha_tecnica, limit=5)),
-        })
+            "anon_used": new_anon_count,
+            "limit": FREE_ANON_LIMIT,
+        }))
+        if not request.cookies.get("aca_anon"):
+            resp.set_cookie("aca_anon", anon_id, max_age=60*60*24*365, samesite="Lax", httponly=True)
+        return resp
 
     except Exception as e:
         traceback.print_exc()
@@ -353,10 +388,13 @@ def historial():
 
 @app.route("/clasificacion/<clasificacion_id>")
 def ver_clasificacion(clasificacion_id):
-    """Obtiene una clasificación completa."""
+    """Obtiene una clasificación completa con HTML renderizado."""
     registro = obtener_clasificacion(clasificacion_id)
     if not registro:
         return jsonify({"error": "No encontrada."}), 404
+    registro["investigacion_html"] = _render_markdown_safe(registro.get("investigacion", ""))
+    registro["clasificacion_html"] = _render_markdown_safe(registro.get("clasificacion", ""))
+    registro["validacion_html"]    = _render_markdown_safe(registro.get("validacion", ""))
     return jsonify(registro)
 
 
@@ -469,6 +507,89 @@ def chat():
     except Exception as e:
         traceback.print_exc()
         return jsonify({"error": str(e)}), 500
+
+
+# ── Auth helpers ──
+
+def _get_anon_id() -> str:
+    """Devuelve el anon_id de la cookie, creándolo si no existe."""
+    return request.cookies.get("aca_anon") or str(uuid.uuid4())
+
+
+def _current_user() -> dict | None:
+    """Devuelve el usuario de la sesión, o None si no está autenticado."""
+    uid = session.get("user_id")
+    if not uid:
+        return None
+    return get_usuario(uid)
+
+
+def _is_admin(user) -> bool:
+    return bool(user) and user.get("email", "").lower() in ADMIN_EMAILS
+
+
+def _gen_codigo() -> str:
+    """Genera un código de 6 caracteres alfanumérico en mayúsculas."""
+    alphabet = string.ascii_uppercase + string.digits
+    return "".join(secrets.choice(alphabet) for _ in range(6))
+
+
+# ── Auth routes ──
+
+@app.route("/auth/status")
+def auth_status():
+    user = _current_user()
+    anon_id = _get_anon_id()
+    used = get_anon_count(anon_id) if not user else 0
+    resp = make_response(jsonify({
+        "user": {"id": user["id"], "email": user["email"], "nombre": user.get("nombre")} if user else None,
+        "anon_used": used,
+        "limit": FREE_ANON_LIMIT,
+        "is_free": not bool(user),
+        "is_admin": _is_admin(user),
+    }))
+    if not request.cookies.get("aca_anon"):
+        resp.set_cookie("aca_anon", anon_id, max_age=60 * 60 * 24 * 365, samesite="Lax", httponly=True)
+    return resp
+
+
+@app.route("/auth/register", methods=["POST"])
+def auth_register():
+    data = request.get_json() or {}
+    email = (data.get("email") or "").strip().lower()
+    if not email or "@" not in email or "." not in email.split("@")[-1]:
+        return jsonify({"error": "Correo inválido."}), 400
+    codigo = _gen_codigo()
+    crear_verificacion(email, codigo)
+    ok = enviar_codigo_verificacion(email, codigo)
+    if not ok:
+        return jsonify({"error": "No se pudo enviar el correo. Intenta de nuevo."}), 500
+    return jsonify({"ok": True, "email": email})
+
+
+@app.route("/auth/verify", methods=["POST"])
+def auth_verify():
+    data = request.get_json() or {}
+    email = (data.get("email") or "").strip().lower()
+    codigo = (data.get("codigo") or "").strip().upper()
+    if not email or not codigo:
+        return jsonify({"error": "Faltan datos."}), 400
+    if not verificar_codigo(email, codigo):
+        return jsonify({"error": "Código incorrecto o expirado."}), 400
+    user = get_or_create_usuario(email)
+    session["user_id"] = user["id"]
+    session.permanent = True
+    return jsonify({
+        "ok": True,
+        "user": {"id": user["id"], "email": user["email"], "nombre": user.get("nombre")},
+        "is_admin": _is_admin(user),
+    })
+
+
+@app.route("/auth/logout", methods=["POST"])
+def auth_logout():
+    session.clear()
+    return jsonify({"ok": True})
 
 
 if __name__ == "__main__":
