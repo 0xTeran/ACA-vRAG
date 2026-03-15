@@ -65,9 +65,11 @@ from database import (
     listar_lecciones,
     obtener_chat_mensajes,
     obtener_clasificacion,
+    obtener_contexto_arancel_estructurado,
     stats_conocimiento,
     update_agent_prompt,
     verificar_codigo,
+    verificar_codigo_arancel,
 )
 from email_sender import enviar_codigo_verificacion
 from pdf_loader import find_relevant_chapters, load_pdf
@@ -350,23 +352,32 @@ def clasificar():
         res_inv = investigar_producto(ficha_tecnica)
         investigacion = res_inv["investigacion_raw"]
 
-        # Extraer subpartidas mencionadas en la investigación para buscar en el arancel
-        subpartidas_inv = re.findall(r'\d{4}\.\d{2}', investigacion)
-        search_text = ficha_tecnica + " " + " ".join(set(subpartidas_inv))
+        # Extraer subpartidas mencionadas en la investigación
+        subpartidas_inv = list(set(re.findall(r'\d{4}\.\d{2}', investigacion)))
 
-        # Buscar contexto del arancel (usando ficha + subpartidas del investigador)
+        # Construir contexto del arancel desde BD estructurada (eficiente, sin alucinaciones)
+        arancel_ctx = obtener_contexto_arancel_estructurado(ficha_tecnica, subpartidas_inv)
+
+        # Complementar con notas de capítulo del PDF (reglas, notas de sección)
+        search_text = ficha_tecnica + " " + " ".join(subpartidas_inv)
+        notas_ctx = find_relevant_chapters(search_text, ARANCEL_TEXT)
+
+        # Conocimiento previo (precedentes + lecciones)
         knowledge_ctx = _build_knowledge_context(ficha_tecnica)
-        contexto = find_relevant_chapters(search_text, ARANCEL_TEXT)
 
-        # Paso 2: Clasificador (con conocimiento previo + investigación)
-        clasificador_contexto = contexto
+        # Contexto completo para el clasificador: BD estructurada + notas + conocimiento
+        clasificador_contexto = arancel_ctx
+        if notas_ctx:
+            clasificador_contexto += "\n\n## Notas de sección y capítulo del Decreto 1881:\n" + notas_ctx
         if knowledge_ctx:
-            clasificador_contexto = knowledge_ctx + "\n\n" + contexto
+            clasificador_contexto = knowledge_ctx + "\n\n" + clasificador_contexto
+
+        # Paso 2: Clasificador
         res_cls = clasificar_producto(ficha_tecnica, clasificador_contexto, investigacion)
         clasificacion = res_cls["clasificacion_raw"]
 
-        # Paso 3: Validador (con arancel completo para verificar existencia de subpartida)
-        res_val = validar_clasificacion(ficha_tecnica, clasificacion, contexto, arancel_completo=ARANCEL_TEXT)
+        # Paso 3: Validador (con BD estructurada para verificar existencia)
+        res_val = validar_clasificacion(ficha_tecnica, clasificacion, arancel_ctx, arancel_completo=ARANCEL_TEXT)
         validacion = res_val["validacion_raw"]
 
         elapsed = round(time.time() - start_time, 2)

@@ -252,6 +252,89 @@ def obtener_chat_mensajes(clasificacion_id: str) -> list[dict]:
     return result.data or []
 
 
+# ── Arancel estructurado ──
+
+
+def verificar_codigo_arancel(codigo: str) -> dict | None:
+    """Verifica si un código arancelario existe en la BD. Retorna el registro o None."""
+    client = get_client()
+    result = client.table("arancel").select("*").eq("codigo", codigo).execute()
+    return result.data[0] if result.data else None
+
+
+def buscar_arancel_por_partida(partida: str) -> list[dict]:
+    """Retorna todas las subpartidas de una partida (ej: '84.24' o '8424')."""
+    client = get_client()
+    # Normalizar: '84.24' → '84.24', '8424' → '84.24'
+    if len(partida) == 4 and "." not in partida:
+        partida = partida[:2] + "." + partida[2:]
+    result = client.table("arancel").select("codigo, descripcion, gravamen").eq("partida", partida).order("codigo").execute()
+    return result.data or []
+
+
+def buscar_arancel_por_descripcion(query: str, limit: int = 20) -> list[dict]:
+    """Busca subpartidas por descripción usando full-text search."""
+    client = get_client()
+    words = re.findall(r'\b[a-záéíóúñ]{4,}\b', query.lower())
+    if not words:
+        return []
+    search = " & ".join(words[:8])
+    try:
+        result = client.table("arancel").select(
+            "codigo, descripcion, gravamen, capitulo, partida"
+        ).text_search("descripcion", search, config="spanish").limit(limit).execute()
+        return result.data or []
+    except Exception:
+        return []
+
+
+def obtener_contexto_arancel_estructurado(ficha_tecnica: str, subpartidas_investigacion: list[str] = None) -> str:
+    """Construye contexto del arancel desde la BD estructurada.
+
+    Mucho más eficiente que enviar texto crudo del PDF.
+    """
+    parts: list[str] = []
+
+    # 1. Si hay subpartidas del investigador, traer esas partidas completas
+    partidas_vistas: set[str] = set()
+    if subpartidas_investigacion:
+        for sub in subpartidas_investigacion:
+            partida = sub[:5] if len(sub) >= 5 else sub[:4]
+            if partida in partidas_vistas:
+                continue
+            partidas_vistas.add(partida)
+            entries = buscar_arancel_por_partida(partida)
+            if entries:
+                lines = [f"\n### Partida {partida} (del arancel vigente):"]
+                for e in entries:
+                    grv = f" | Gravamen: {e['gravamen']}%" if e.get('gravamen') is not None else ""
+                    lines.append(f"  {e['codigo']} — {e['descripcion']}{grv}")
+                parts.append("\n".join(lines))
+
+    # 2. Buscar por descripción del producto
+    resultados = buscar_arancel_por_descripcion(ficha_tecnica, limit=15)
+    if resultados:
+        # Traer partidas completas de los resultados
+        for r in resultados:
+            partida = r.get("partida", "")
+            if partida and partida not in partidas_vistas:
+                partidas_vistas.add(partida)
+                entries = buscar_arancel_por_partida(partida)
+                if entries:
+                    lines = [f"\n### Partida {partida} (relevante por descripción):"]
+                    for e in entries:
+                        grv = f" | Gravamen: {e['gravamen']}%" if e.get('gravamen') is not None else ""
+                        lines.append(f"  {e['codigo']} — {e['descripcion']}{grv}")
+                    parts.append("\n".join(lines))
+
+    if parts:
+        header = "## SUBPARTIDAS DEL ARANCEL VIGENTE (Decreto 1881/2021 - datos exactos de la BD):\n"
+        header += "⚠️ Estos datos son EXACTOS de la base de datos. Si un código aparece aquí, EXISTE.\n"
+        return header + "\n".join(parts)
+
+    return ""
+
+
 # ── Lecciones aprendidas ──
 
 
