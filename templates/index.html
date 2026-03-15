@@ -93,6 +93,8 @@
                     </div>
                     <form id="form-clasificar" enctype="multipart/form-data">
                         <input type="hidden" name="input_type" id="input_type" value="texto">
+                        <!-- Panels de entrada (se ocultan en modo chat) -->
+                    <div id="input-panels">
                         <div id="panel-texto"><textarea name="ficha_texto" id="ficha_texto" rows="6" class="w-full bg-gray-800 border border-gray-700 rounded-lg p-4 text-gray-200 text-sm resize-y placeholder-gray-500" placeholder="Pegue la ficha t&eacute;cnica del producto..."></textarea></div>
                         <div id="panel-url" class="hidden"><input type="url" name="ficha_url" id="ficha_url" class="w-full bg-gray-800 border border-gray-700 rounded-lg p-4 text-gray-200 text-sm placeholder-gray-500" placeholder="https://ejemplo.com/ficha.pdf"></div>
                         <div id="panel-archivo" class="hidden">
@@ -102,7 +104,19 @@
                                 <input type="file" name="ficha_archivo" id="ficha_archivo" accept=".pdf,.png,.jpg,.jpeg,.webp,.gif,.bmp,image/*" class="hidden">
                             </label>
                         </div>
-                        <button type="submit" id="btn-clasificar" class="mt-4 w-full py-3 rounded-lg font-semibold text-white bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"><i class="fas fa-search"></i> Clasificar Producto</button>
+                    </div>
+                    <!-- Chat input (se muestra después de clasificar) -->
+                    <div id="chat-input-box" class="hidden">
+                        <div class="flex gap-2">
+                            <input type="text" id="chat-input" class="flex-1 bg-gray-800 border border-gray-700 rounded-lg px-4 py-3 text-gray-200 text-sm placeholder-gray-500" placeholder="Pregunta sobre la clasificaci&oacute;n, pega un link de la DIAN..." autocomplete="off">
+                            <button type="button" id="btn-chat" class="px-5 py-3 rounded-lg font-medium text-white bg-gradient-to-r from-green-600 to-teal-600 hover:from-green-500 hover:to-teal-500 transition-all disabled:opacity-50"><i class="fas fa-paper-plane"></i></button>
+                        </div>
+                        <div class="flex justify-between mt-2">
+                            <p class="text-xs text-gray-600"><i class="fas fa-info-circle mr-1"></i>Puedes pegar URLs y se descargar&aacute;n autom&aacute;ticamente</p>
+                            <button type="button" onclick="resetToNew()" class="text-xs text-blue-400 hover:text-blue-300"><i class="fas fa-plus mr-1"></i>Nueva clasificaci&oacute;n</button>
+                        </div>
+                    </div>
+                    <button type="submit" id="btn-clasificar" class="mt-4 w-full py-3 rounded-lg font-semibold text-white bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"><i class="fas fa-search"></i> Clasificar Producto</button>
                     </form>
                 </div>
             </div>
@@ -203,16 +217,9 @@
                     <div id="estado-feedback" class="hidden mt-3 text-sm"></div>
                 </div></div>
 
-                <!-- Chat -->
-                <div class="result-section"><div class="glass rounded-xl p-4">
-                    <h2 class="flex items-center gap-2 text-green-300 font-semibold text-sm mb-3"><i class="fas fa-comments text-green-400"></i> Chat</h2>
-                    <div id="chat-messages" class="space-y-3 mb-3 max-h-72 overflow-y-auto pr-2"></div>
-                    <div id="chat-loading" class="hidden mb-3"><div class="flex items-center gap-2 text-sm text-gray-400"><i class="fas fa-circle-notch fa-spin text-green-400"></i><span>Pensando...</span></div></div>
-                    <div class="flex gap-2">
-                        <input type="text" id="chat-input" class="flex-1 bg-gray-800 border border-gray-700 rounded-lg px-4 py-2.5 text-gray-200 text-sm placeholder-gray-500" placeholder="Pregunta sobre la clasificaci&oacute;n..." autocomplete="off">
-                        <button id="btn-chat" class="px-5 py-2.5 rounded-lg font-medium text-white bg-gradient-to-r from-green-600 to-teal-600 hover:from-green-500 hover:to-teal-500 transition-all disabled:opacity-50"><i class="fas fa-paper-plane"></i></button>
-                    </div>
-                </div></div>
+                <!-- Chat messages (inline, no separate section) -->
+                <div id="chat-messages" class="space-y-3 result-section"></div>
+                <div id="chat-loading" class="hidden"><div class="glass rounded-xl p-4 flex items-center gap-2 text-sm text-gray-400"><i class="fas fa-circle-notch fa-spin text-green-400"></i><span>Pensando...</span></div></div>
             </div>
         </div>
 
@@ -333,6 +340,7 @@
 
                 ['ficha-body','inv-body','cls-body','val-body'].forEach(id=>{document.getElementById(id).classList.remove('open')});
                 results.classList.remove('hidden');
+                switchToChatMode();
             } catch(e) { console.error('Error loading session:', e); }
         }
 
@@ -343,14 +351,36 @@
             return div.innerHTML.replace(/\n/g, '<br>');
         }
 
+        function switchToChatMode() {
+            // Hide classification input, show chat input
+            document.getElementById('input-panels').classList.add('hidden');
+            document.getElementById('btn-clasificar').classList.add('hidden');
+            document.querySelectorAll('.flex.flex-wrap.gap-2.mb-5')[0].classList.add('hidden'); // tabs
+            document.getElementById('chat-input-box').classList.remove('hidden');
+            document.getElementById('chat-input').focus();
+        }
+
+        function resetToNew() {
+            // Back to classification mode
+            currentId = '';
+            chatHistory = [];
+            currentContext = {ficha_tecnica:'',clasificacion:'',validacion:'',investigacion:''};
+            document.getElementById('input-panels').classList.remove('hidden');
+            document.getElementById('btn-clasificar').classList.remove('hidden');
+            document.querySelectorAll('.flex.flex-wrap.gap-2.mb-5')[0].classList.remove('hidden');
+            document.getElementById('chat-input-box').classList.add('hidden');
+            document.getElementById('results').classList.add('hidden');
+            document.getElementById('chat-messages').textContent = '';
+            document.getElementById('ficha_texto').value = '';
+            window.history.pushState({}, '', '/');
+        }
+
         // Handle browser back/forward
         window.addEventListener('popstate', function(e) {
             if (e.state && e.state.sessionId) {
                 loadSession(e.state.sessionId);
             } else {
-                // Back to home
-                currentId = '';
-                document.getElementById('results').classList.add('hidden');
+                resetToNew();
             }
         });
 
@@ -483,6 +513,8 @@
                 if (currentId) {
                     window.history.pushState({sessionId: currentId}, '', '/c/' + currentId);
                 }
+                // Switch to chat mode
+                switchToChatMode();
             }catch(err){document.getElementById('error-message').textContent=err.message;errorBox.classList.remove('hidden')}
             finally{loading.classList.add('hidden');btn.disabled=false;btn.innerHTML='<i class="fas fa-search"></i> Clasificar Producto'}
         });
