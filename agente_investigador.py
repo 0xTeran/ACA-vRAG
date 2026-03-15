@@ -18,47 +18,18 @@ from config import (
     OPENROUTER_BASE_URL,
     PERPLEXITY_MODEL,
 )
+from database import get_agent_prompt
 
-SYSTEM_PROMPT = """\
-Fecha actual: 2026-03-14. Estamos en el año 2026.
+# Fallback si no hay prompt en BD
+_DEFAULT_PROMPT = "Eres un investigador de resoluciones DIAN Colombia. Responde en español."
 
-Eres un investigador jurídico-aduanero experto en normativa colombiana de la DIAN. \
-Tu trabajo es investigar resoluciones, conceptos, sentencias y doctrina ANTES de que \
-se realice la clasificación arancelaria de un producto.
 
-## REGLAS CRÍTICAS:
-- La fecha actual es MARZO 2026. Las resoluciones de 2025 y 2026 son VÁLIDAS y recientes.
-- NUNCA cuestiones la validez temporal de resoluciones encontradas.
-- Las resoluciones de la DIAN usan numeración larga (ej: 2026003980600068). Esto es NORMAL.
-- Si una fuente fue encontrada por el buscador, considérala REAL. No inventes dudas sobre su existencia.
-- Reporta TODOS los hallazgos encontrados, incluso si no estás 100% seguro de su relevancia.
-
-## Tu objetivo:
-Recopilar todos los precedentes normativos relevantes para que el agente clasificador \
-tome la mejor decisión posible al momento de asignar la subpartida arancelaria.
-
-## Debes buscar y reportar:
-1. **Resoluciones de clasificación arancelaria de la DIAN** - Son vinculantes.
-2. **Conceptos de la DIAN** - Interpretaciones oficiales.
-3. **Sentencias del Consejo de Estado** - Jurisprudencia.
-4. **Decisiones de la Comunidad Andina** - Normativa supranacional.
-5. **Notas explicativas del Sistema Armonizado (OMA)** - Guías internacionales.
-
-## Formato de respuesta:
-Para cada fuente relevante:
-- **Tipo**: Resolución / Concepto / Sentencia / Decisión CAN / Nota explicativa
-- **Número y fecha**: Identificación del documento
-- **Producto relacionado**: Qué producto clasifica
-- **Subpartida asignada**: Código arancelario determinado
-- **Resumen**: Puntos clave del documento
-- **Relevancia**: Alta / Media / Baja para el producto consultado
-- **URL**: Enlace a la fuente (si disponible)
-
-Al final, emite una **GUÍA DE CLASIFICACIÓN** con las subpartidas que los precedentes \
-sugieren como más probables para este tipo de producto, ordenadas por relevancia.
-
-Responde siempre en español.
-"""
+def _get_prompt() -> str:
+    try:
+        p = get_agent_prompt("investigador")
+        return p if p else _DEFAULT_PROMPT
+    except Exception:
+        return _DEFAULT_PROMPT
 
 
 def _scrape_dian_resoluciones() -> str:
@@ -186,7 +157,7 @@ la mejor decisión de clasificación arancelaria.
         model=MODEL,
         max_tokens=4096,
         messages=[
-            {"role": "system", "content": SYSTEM_PROMPT},
+            {"role": "system", "content": _get_prompt()},
             {"role": "user", "content": user_message},
         ],
     )

@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
-import { PenSquare, PanelLeftClose, PanelLeft, Menu, Clock, Search, Database, MoreHorizontal, Trash2, CheckCircle, XCircle, Microscope, X } from 'lucide-react'
+import { PenSquare, PanelLeftClose, PanelLeft, Menu, Clock, Search, Database, Settings, MoreHorizontal, Trash2, CheckCircle, XCircle, Microscope, X } from 'lucide-react'
 import { Logo } from '@/components/ui/Logo'
 import { useAppStore } from '@/store/appStore'
 import { ClasificacionRecord } from '@/types'
@@ -214,10 +214,16 @@ export function Sidebar() {
           <Clock size={14} /> Historial completo
         </Link>
         {isAdmin && (
-          <Link href="/importar" onClick={() => setMobileOpen(false)} style={bottomLinkStyle}
-            onMouseOver={e => e.currentTarget.style.background = 'rgba(128,128,128,.08)'} onMouseOut={e => e.currentTarget.style.background = 'transparent'}>
-            <Database size={14} /> Importar BD
-          </Link>
+          <>
+            <Link href="/importar" onClick={() => setMobileOpen(false)} style={bottomLinkStyle}
+              onMouseOver={e => e.currentTarget.style.background = 'rgba(128,128,128,.08)'} onMouseOut={e => e.currentTarget.style.background = 'transparent'}>
+              <Database size={14} /> Importar BD
+            </Link>
+            <Link href="/config" onClick={() => setMobileOpen(false)} style={bottomLinkStyle}
+              onMouseOver={e => e.currentTarget.style.background = 'rgba(128,128,128,.08)'} onMouseOut={e => e.currentTarget.style.background = 'transparent'}>
+              <Settings size={14} /> Configuración
+            </Link>
+          </>
         )}
       </div>
     </>

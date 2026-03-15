@@ -248,6 +248,35 @@ def obtener_chat_mensajes(clasificacion_id: str) -> list[dict]:
     return result.data or []
 
 
+# ── Agent Prompts ──
+
+
+def get_agent_prompt(agent_key: str) -> str:
+    """Obtiene el system prompt de un agente desde Supabase."""
+    client = get_client()
+    result = client.table("agent_prompts").select("system_prompt").eq("agent_key", agent_key).execute()
+    if result.data:
+        return result.data[0]["system_prompt"]
+    return ""
+
+
+def get_all_agent_prompts() -> list[dict]:
+    """Obtiene todos los prompts de agentes."""
+    client = get_client()
+    result = client.table("agent_prompts").select("agent_key, label, system_prompt, updated_at").order("agent_key").execute()
+    return result.data or []
+
+
+def update_agent_prompt(agent_key: str, system_prompt: str) -> dict:
+    """Actualiza el system prompt de un agente."""
+    client = get_client()
+    result = client.table("agent_prompts").update({
+        "system_prompt": system_prompt,
+        "updated_at": datetime.utcnow().isoformat(),
+    }).eq("agent_key", agent_key).execute()
+    return result.data[0] if result.data else {}
+
+
 # ── Auth / usuarios ──
 
 def get_anon_count(anon_id: str) -> int:

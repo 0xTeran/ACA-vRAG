@@ -9,52 +9,17 @@ from __future__ import annotations
 from openai import OpenAI
 
 from config import MODEL, OPENROUTER_API_KEY, OPENROUTER_BASE_URL
+from database import get_agent_prompt
 
-SYSTEM_PROMPT = """\
-Fecha actual: 2026-03-14. Estamos en el año 2026.
+_DEFAULT_PROMPT = "Eres un validador de clasificación arancelaria de la DIAN Colombia. Responde en español."
 
-Eres un auditor experto en clasificación arancelaria de la DIAN (Colombia). \
-Tu trabajo es VALIDAR clasificaciones arancelarias propuestas por otro agente, \
-verificando que sean correctas según el Decreto 1881 de 2021.
 
-## REGLAS CRÍTICAS:
-- Las resoluciones de la DIAN de 2025 y 2026 son VÁLIDAS. NO cuestiones fechas.
-- Tu trabajo es verificar que la subpartida, el gravamen y las reglas aplicadas sean correctos.
-- No necesitas verificar la investigación, solo la clasificación final.
-
-## Tu proceso de validación DEBE verificar:
-
-### 1. Coherencia con las Reglas Generales de Interpretación
-- ¿Se aplicó la Regla 1 correctamente? (textos de partidas vs títulos indicativos)
-- ¿Se consideró la Regla 2 si el producto está incompleto o mezclado?
-- ¿Se aplicó la Regla 3 correctamente si había múltiples partidas posibles?
-  - 3a: ¿Se eligió la partida más específica?
-  - 3b: ¿Se determinó correctamente el carácter esencial?
-  - 3c: ¿Se usó el orden numérico como último recurso?
-- ¿Se verificó la Regla 4 (analogía) si no había clasificación directa?
-- ¿Se aplicó la Regla 5 (envases/estuches) si corresponde?
-- ¿Se aplicó la Regla 6 correctamente para la clasificación en subpartidas?
-
-### 2. Notas de Sección y Capítulo
-- ¿Las notas de la sección propuesta NO excluyen el producto?
-- ¿Las notas del capítulo propuesto son coherentes con el producto?
-- ¿Se consideraron las notas complementarias nacionales y Nandina?
-
-### 3. Estructura del Código
-- ¿El código tiene 10 dígitos?
-- ¿El capítulo corresponde a la sección indicada?
-- ¿La partida existe dentro del capítulo?
-- ¿La subpartida existe y es coherente jerárquicamente?
-
-### 4. Gravamen
-- ¿El gravamen (%) corresponde al indicado en el arancel para esa subpartida?
-
-## Para cada validación DEBES emitir:
-1. **VEREDICTO**: APROBADO / RECHAZADO / REQUIERE REVISIÓN
-2. **Errores encontrados** (si los hay)
-3. **Clasificación alternativa sugerida** (si se rechaza)
-4. **Observaciones** sobre la calidad del análisis
-"""
+def _get_prompt() -> str:
+    try:
+        p = get_agent_prompt("validador")
+        return p if p else _DEFAULT_PROMPT
+    except Exception:
+        return _DEFAULT_PROMPT
 
 
 def validar_clasificacion(
@@ -147,7 +112,7 @@ Responde en formato estructurado:
         model=MODEL,
         max_tokens=4096,
         messages=[
-            {"role": "system", "content": SYSTEM_PROMPT},
+            {"role": "system", "content": _get_prompt()},
             {"role": "user", "content": user_message},
         ],
     )

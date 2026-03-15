@@ -49,6 +49,8 @@ from database import (
     buscar_conocimiento,
     calcular_costo_total,
     crear_verificacion,
+    get_agent_prompt,
+    get_all_agent_prompts,
     get_anon_count,
     get_or_create_usuario,
     get_usuario,
@@ -60,6 +62,7 @@ from database import (
     obtener_chat_mensajes,
     obtener_clasificacion,
     stats_conocimiento,
+    update_agent_prompt,
     verificar_codigo,
 )
 from email_sender import enviar_codigo_verificacion
@@ -480,26 +483,13 @@ def conocimiento_stats():
 
 # ── Chat ──
 
-CHAT_SYSTEM_PROMPT = """\
-Fecha actual: 2026-03-14. Estamos en el año 2026.
-
-Eres un experto en clasificación arancelaria de la DIAN (Colombia), especializado en el \
-Decreto 1881 de 2021. Un usuario recibió una clasificación, validación e investigación de \
-fuentes DIAN sobre un producto. Responde preguntas de seguimiento con precisión, citando \
-reglas, notas y resoluciones relevantes.
-
-## REGLAS CRÍTICAS:
-- Estamos en 2026. Las resoluciones de 2025 y 2026 son VÁLIDAS y recientes.
-- NUNCA digas que una resolución "no puede existir" por su fecha.
-- Las resoluciones DIAN usan numeración larga (ej: 2026003980600068). Es formato NORMAL.
-- Si el sistema descargó contenido de un enlace, el contenido es REAL. Analízalo sin cuestionar.
-- Cuando el usuario pregunte por una resolución específica, cita los datos encontrados.
-
-Cuando el usuario comparta un enlace, el sistema descargará automáticamente el contenido \
-y te lo proporcionará como contexto adicional. Analiza ese contenido en tu respuesta.
-
-Responde en español.
-"""
+def _get_chat_prompt() -> str:
+    try:
+        from database import get_agent_prompt
+        p = get_agent_prompt("chat")
+        return p if p else "Eres un experto en clasificación arancelaria DIAN Colombia. Responde en español."
+    except Exception:
+        return "Eres un experto en clasificación arancelaria DIAN Colombia. Responde en español."
 
 _URL_PATTERN = re.compile(r'https?://[^\s<>"\']+')
 
@@ -536,7 +526,7 @@ def chat():
         if url_content:
             enriched_message += "\n\n[Contenido descargado:]\n" + url_content
 
-        messages = [{"role": "system", "content": CHAT_SYSTEM_PROMPT}]
+        messages = [{"role": "system", "content": _get_chat_prompt()}]
 
         # Cargar contexto desde BD si hay clasificacion_id, o desde el request
         ficha = data.get("ficha_tecnica", "")
@@ -589,6 +579,25 @@ def chat():
     except Exception as e:
         traceback.print_exc()
         return jsonify({"error": str(e)}), 500
+
+
+# ── Agent Prompts ──
+
+@app.route("/prompts")
+def get_prompts():
+    """Retorna todos los system prompts de los agentes."""
+    prompts = get_all_agent_prompts()
+    return jsonify({"prompts": prompts})
+
+
+@app.route("/prompts/<agent_key>", methods=["PUT"])
+def put_prompt(agent_key):
+    """Actualiza el system prompt de un agente."""
+    data = request.get_json()
+    if not data or "system_prompt" not in data:
+        return jsonify({"error": "Falta system_prompt."}), 400
+    result = update_agent_prompt(agent_key, data["system_prompt"])
+    return jsonify({"ok": True, "prompt": result})
 
 
 # ── Auth helpers ──
