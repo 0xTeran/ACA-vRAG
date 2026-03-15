@@ -288,6 +288,55 @@ def buscar_arancel_por_descripcion(query: str, limit: int = 20) -> list[dict]:
         return []
 
 
+def obtener_notas_capitulo(capitulo: str) -> list[dict]:
+    """Obtiene notas de un capítulo específico."""
+    client = get_client()
+    cap_ref = f"Capítulo {capitulo.zfill(2)}"
+    result = client.table("notas_arancel").select("tipo, contenido").or_(
+        f"referencia.eq.{cap_ref},tipo.eq.reglas_generales"
+    ).execute()
+    return result.data or []
+
+
+def obtener_notas_seccion(seccion: str) -> list[dict]:
+    """Obtiene notas de una sección."""
+    client = get_client()
+    result = client.table("notas_arancel").select("tipo, referencia, contenido").ilike(
+        "referencia", f"%{seccion}%"
+    ).execute()
+    return result.data or []
+
+
+def obtener_notas_para_clasificacion(capitulos: list[str]) -> str:
+    """Obtiene las notas relevantes para una lista de capítulos y las formatea."""
+    client = get_client()
+    parts: list[str] = []
+    seen: set[str] = set()
+
+    # Reglas generales (siempre)
+    reglas = client.table("notas_arancel").select("contenido").eq("tipo", "reglas_generales").execute()
+    if reglas.data:
+        parts.append("## Reglas Generales de Interpretación:\n" + reglas.data[0]["contenido"][:2000])
+
+    for cap in capitulos:
+        cap_str = cap.zfill(2)
+        if cap_str in seen:
+            continue
+        seen.add(cap_str)
+
+        cap_ref = f"Capítulo {cap_str}"
+        result = client.table("notas_arancel").select("tipo, contenido").eq("referencia", cap_ref).execute()
+        for nota in (result.data or []):
+            label = {
+                "capitulo": f"Notas del Capítulo {cap_str}",
+                "complementaria_nacional": f"Notas complementarias nacionales - Cap. {cap_str}",
+                "complementaria_nandina": f"Notas complementarias Nandina - Cap. {cap_str}",
+            }.get(nota["tipo"], f"Nota Cap. {cap_str}")
+            parts.append(f"\n### {label}:\n{nota['contenido']}")
+
+    return "\n\n".join(parts)
+
+
 def obtener_contexto_arancel_estructurado(ficha_tecnica: str, subpartidas_investigacion: list[str] = None) -> str:
     """Construye contexto del arancel desde la BD estructurada.
 
