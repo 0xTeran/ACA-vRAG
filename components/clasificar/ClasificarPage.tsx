@@ -326,7 +326,7 @@ export function ClasificarPage({ sessionId }: Props) {
           }}>
             <Logo height={54} />
             <p style={{ color: 'var(--text-3)', fontSize: '.88rem', maxWidth: 340, lineHeight: 1.6 }}>
-              Clasifica mercancías bajo el Decreto 1881/2021 —<br />ingresa una descripción, URL o adjunta una imagen
+              Agente de Clasificación Arancelaria
             </p>
             {!user && (
               <p style={{ color: 'var(--text-3)', fontSize: '.75rem' }}>
