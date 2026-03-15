@@ -365,8 +365,8 @@ def clasificar():
         res_cls = clasificar_producto(ficha_tecnica, clasificador_contexto, investigacion)
         clasificacion = res_cls["clasificacion_raw"]
 
-        # Paso 3: Validador
-        res_val = validar_clasificacion(ficha_tecnica, clasificacion, contexto)
+        # Paso 3: Validador (con arancel completo para verificar existencia de subpartida)
+        res_val = validar_clasificacion(ficha_tecnica, clasificacion, contexto, arancel_completo=ARANCEL_TEXT)
         validacion = res_val["validacion_raw"]
 
         elapsed = round(time.time() - start_time, 2)
