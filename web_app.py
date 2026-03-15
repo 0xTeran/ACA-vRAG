@@ -353,8 +353,33 @@ def clasificar():
         res_inv = investigar_producto(ficha_tecnica)
         investigacion = res_inv["investigacion_raw"]
 
-        # Extraer subpartidas mencionadas en la investigación
+        # Paso 1.5: Verificar subpartidas de la investigación contra BD real
+        subpartidas_10 = list(set(re.findall(r'\d{4}\.\d{2}\.\d{2}\.\d{2}', investigacion)))
         subpartidas_inv = list(set(re.findall(r'\d{4}\.\d{2}', investigacion)))
+
+        if subpartidas_10:
+            verificacion_lines = ["\n\n## ⚠️ VERIFICACIÓN DE SUBPARTIDAS MENCIONADAS EN LA INVESTIGACIÓN:"]
+            for sub in subpartidas_10:
+                registro = verificar_codigo_arancel(sub)
+                if registro:
+                    verificacion_lines.append(
+                        f"✅ {sub} — EXISTE — {registro['descripcion'][:80]} | Gravamen: {registro.get('gravamen', '?')}%"
+                    )
+                else:
+                    # Buscar alternativas
+                    from database import buscar_arancel_por_partida
+                    partida = sub[:5]
+                    alts = buscar_arancel_por_partida(partida)
+                    alt_codes = [a['codigo'] for a in alts]
+                    verificacion_lines.append(
+                        f"❌ {sub} — NO EXISTE en el Decreto 1881. "
+                        f"Subpartidas reales de la partida {partida}: {', '.join(alt_codes[:8])}"
+                    )
+            verificacion_lines.append(
+                "\nIMPORTANTE: Solo usa subpartidas marcadas con ✅. Las marcadas con ❌ fueron "
+                "inventadas o corresponden a aranceles de otros países. NO las uses."
+            )
+            investigacion += "\n".join(verificacion_lines)
 
         # Construir contexto del arancel desde BD estructurada
         arancel_ctx = obtener_contexto_arancel_estructurado(ficha_tecnica, subpartidas_inv)
