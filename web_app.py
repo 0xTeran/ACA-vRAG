@@ -346,13 +346,17 @@ def clasificar():
         if not ficha_tecnica.strip():
             return jsonify({"error": "No se pudo extraer texto del archivo."}), 400
 
-        # Buscar precedentes en base de conocimiento
-        knowledge_ctx = _build_knowledge_context(ficha_tecnica)
-        contexto = find_relevant_chapters(ficha_tecnica, ARANCEL_TEXT)
-
         # Paso 1: Investigador
         res_inv = investigar_producto(ficha_tecnica)
         investigacion = res_inv["investigacion_raw"]
+
+        # Extraer subpartidas mencionadas en la investigación para buscar en el arancel
+        subpartidas_inv = re.findall(r'\d{4}\.\d{2}', investigacion)
+        search_text = ficha_tecnica + " " + " ".join(set(subpartidas_inv))
+
+        # Buscar contexto del arancel (usando ficha + subpartidas del investigador)
+        knowledge_ctx = _build_knowledge_context(ficha_tecnica)
+        contexto = find_relevant_chapters(search_text, ARANCEL_TEXT)
 
         # Paso 2: Clasificador (con conocimiento previo + investigación)
         clasificador_contexto = contexto

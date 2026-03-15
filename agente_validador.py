@@ -45,7 +45,7 @@ def validar_clasificacion(
     user_message = f"""\
 ## Contexto del Arancel de Aduanas (Decreto 1881 de 2021):
 
-{contexto_arancel[:80000]}
+{contexto_arancel}
 
 ---
 
