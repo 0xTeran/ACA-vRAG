@@ -124,8 +124,18 @@ def investigar_producto(ficha_tecnica: str) -> dict:
     print("  [Investigador] Sintetizando hallazgos...")
     client = OpenAI(api_key=OPENROUTER_API_KEY, base_url=OPENROUTER_BASE_URL)
 
+    # Buscar lecciones para el investigador
+    from database import buscar_lecciones as _buscar
+    lecciones_inv = _buscar(ficha_tecnica, agente="investigador", limit=5)
+    lecciones_ctx = ""
+    if lecciones_inv:
+        lines = ["## Lecciones aprendidas para investigación:\n"]
+        for l in lecciones_inv:
+            lines.append(f"- {l['regla']}")
+        lecciones_ctx = "\n".join(lines) + "\n\n---\n"
+
     user_message = f"""\
-## Ficha técnica del producto a investigar:
+{lecciones_ctx}## Ficha técnica del producto a investigar:
 {ficha_tecnica}
 
 ## Información de la página oficial de Resoluciones de Clasificación Arancelaria DIAN:

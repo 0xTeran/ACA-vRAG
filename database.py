@@ -281,26 +281,47 @@ def guardar_leccion(
 
 
 def buscar_lecciones(ficha_tecnica: str, agente: str = "", limit: int = 8) -> list[dict]:
-    """Busca lecciones relevantes por keywords."""
-    words = set(re.findall(r'\b[a-záéíóúñ]{4,}\b', ficha_tecnica.lower()))
-    if not words:
-        return []
-
-    search_query = " | ".join(sorted(words)[:10])
+    """Busca lecciones relevantes por keywords + lecciones transversales (sin producto)."""
     client = get_client()
+    results: list[dict] = []
+    seen: set[str] = set()
 
+    # 1. Lecciones transversales (protocolos, sin producto específico)
     try:
         q = client.table("lecciones").select(
             "regla, subpartida, agente, producto, fuente"
-        ).text_search("keywords", search_query, config="spanish").limit(limit)
-
+        ).eq("producto", "").limit(limit)
         if agente:
             q = q.eq("agente", agente)
-
-        result = q.execute()
-        return result.data or []
+        transversales = q.execute()
+        for l in (transversales.data or []):
+            key = l["regla"][:50]
+            if key not in seen:
+                seen.add(key)
+                results.append(l)
     except Exception:
-        return []
+        pass
+
+    # 2. Lecciones específicas por keywords del producto
+    words = set(re.findall(r'\b[a-záéíóúñ]{4,}\b', ficha_tecnica.lower()))
+    if words:
+        search_query = " | ".join(sorted(words)[:10])
+        try:
+            q = client.table("lecciones").select(
+                "regla, subpartida, agente, producto, fuente"
+            ).text_search("keywords", search_query, config="spanish").limit(limit)
+            if agente:
+                q = q.eq("agente", agente)
+            especificas = q.execute()
+            for l in (especificas.data or []):
+                key = l["regla"][:50]
+                if key not in seen:
+                    seen.add(key)
+                    results.append(l)
+        except Exception:
+            pass
+
+    return results[:limit]
 
 
 def extraer_lecciones_de_chat(clasificacion_id: str) -> list[dict]:
