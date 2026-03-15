@@ -2,12 +2,13 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { Sun, Moon, ChevronDown, LogOut } from 'lucide-react'
-import { useState } from 'react'
+import { Sun, Moon, ChevronDown, LogOut, Menu } from 'lucide-react'
+import { useState, useEffect } from 'react'
 import { Logo } from '@/components/ui/Logo'
 import { useTheme } from './ThemeProvider'
 import { useAuth } from '@/hooks/useAuth'
 import { useAuthModal } from '@/components/auth/AuthModal'
+import { openMobileSidebar } from './Sidebar'
 
 export function Topbar() {
   const pathname = usePathname()
@@ -15,6 +16,14 @@ export function Topbar() {
   const { user, isAdmin, logout } = useAuth()
   const { open: openAuth } = useAuthModal()
   const [menuOpen, setMenuOpen] = useState(false)
+  const [isMobile, setIsMobile] = useState(false)
+
+  useEffect(() => {
+    const check = () => setIsMobile(window.innerWidth < 768)
+    check()
+    window.addEventListener('resize', check)
+    return () => window.removeEventListener('resize', check)
+  }, [])
 
   const navPill = (href: string, label: string) => {
     const active = pathname === href || (href !== '/' && pathname.startsWith(href))
@@ -47,6 +56,15 @@ export function Topbar() {
       borderBottom: '1px solid var(--topbar-border)',
       background: 'var(--topbar-bg)', backdropFilter: 'blur(16px)',
     }}>
+      {isMobile && (
+        <button onClick={openMobileSidebar} style={{
+          background: 'none', border: 'none', cursor: 'pointer',
+          color: 'var(--text)', padding: 6, borderRadius: 8,
+          display: 'flex', alignItems: 'center', marginRight: 8,
+        }}>
+          <Menu size={20} />
+        </button>
+      )}
       <Link href="/" style={{ display: 'flex', alignItems: 'center', textDecoration: 'none' }}>
         <Logo height={22} />
       </Link>

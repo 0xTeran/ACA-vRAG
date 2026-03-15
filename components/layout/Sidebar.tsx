@@ -46,9 +46,19 @@ function useIsMobile() {
   return mobile
 }
 
+// Global toggle for mobile sidebar (called from Topbar)
+let _openMobileSidebar: (() => void) | null = null
+export function openMobileSidebar() { _openMobileSidebar?.() }
+
 export function Sidebar() {
   const [desktopOpen, setDesktopOpen] = useState(true)
   const [mobileOpen, setMobileOpen] = useState(false)
+
+  // Register global toggle
+  useEffect(() => {
+    _openMobileSidebar = () => setMobileOpen(true)
+    return () => { _openMobileSidebar = null }
+  }, [])
   const [records, setRecords] = useState<ClasificacionRecord[]>([])
   const [search, setSearch] = useState('')
   const [menuId, setMenuId] = useState<string | null>(null)
@@ -217,16 +227,7 @@ export function Sidebar() {
   if (isMobile) {
     return (
       <>
-        {/* Hamburger button (fixed top-left) */}
-        <button onClick={() => setMobileOpen(true)} style={{
-          position: 'fixed', top: 10, left: 10, zIndex: 150,
-          background: 'var(--card)', border: '1px solid var(--border)',
-          borderRadius: 10, padding: 8, cursor: 'pointer', color: 'var(--text)',
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          boxShadow: '0 2px 8px rgba(0,0,0,.15)',
-        }}>
-          <Menu size={18} />
-        </button>
+        {/* Mobile hamburger is rendered inside Topbar via window event */}
 
         {/* Overlay */}
         {mobileOpen && (
