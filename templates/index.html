@@ -251,6 +251,109 @@
     </main>
 
     <script>
+        // ── Session management ──
+        let currentId = '';
+        let chatHistory = [];
+        let currentContext = {ficha_tecnica:'',clasificacion:'',validacion:'',investigacion:''};
+
+        // Check if we're on a session URL /c/<id>
+        (function checkSessionUrl() {
+            const match = window.location.pathname.match(/^\/c\/([a-f0-9-]+)$/i);
+            if (match) {
+                loadSession(match[1]);
+            }
+        })();
+
+        async function loadSession(sessionId) {
+            try {
+                const resp = await fetch('/c/' + sessionId + '/data');
+                if (!resp.ok) return;
+                const data = await resp.json();
+                currentId = sessionId;
+
+                // Populate results
+                showPage('clasificar');
+                const results = document.getElementById('results');
+                document.getElementById('ficha-extraida-box').classList.add('hidden');
+
+                ['result-investigacion','result-clasificacion','result-validacion'].forEach(id=>{document.getElementById(id).textContent=''});
+                document.getElementById('result-investigacion').insertAdjacentHTML('afterbegin', data.investigacion_html || '');
+                document.getElementById('result-clasificacion').insertAdjacentHTML('afterbegin', data.clasificacion_html || '');
+                document.getElementById('result-validacion').insertAdjacentHTML('afterbegin', data.validacion_html || '');
+
+                document.getElementById('inv-summary').innerHTML = extractSummary(data.investigacion || '', 'investigador');
+                document.getElementById('cls-summary').innerHTML = extractSummary(data.clasificacion || '', 'clasificador');
+                document.getElementById('val-summary').innerHTML = extractSummary(data.validacion || '', 'validador');
+
+                document.getElementById('m-tiempo').textContent = (data.tiempo_segundos || 0) + 's';
+                document.getElementById('m-cop').textContent = '$' + Number(data.costo_cop || 0).toLocaleString('es-CO');
+                document.getElementById('m-usd').textContent = '$' + Number(data.costo_usd || 0).toFixed(4);
+                document.getElementById('m-tokens').textContent = Number(data.tokens_total || data.tokens || 0).toLocaleString();
+
+                currentContext = {
+                    ficha_tecnica: data.ficha_tecnica || '',
+                    clasificacion: data.clasificacion || '',
+                    validacion: data.validacion || '',
+                    investigacion: data.investigacion || '',
+                };
+
+                // Load chat history
+                const chatContainer = document.getElementById('chat-messages');
+                chatContainer.textContent = '';
+                chatHistory = [];
+                if (data.chat_messages && data.chat_messages.length > 0) {
+                    data.chat_messages.forEach(msg => {
+                        appendChat(msg.role, msg.role === 'user' ? msg.content : _render_safe(msg.content));
+                        chatHistory.push({role: msg.role, content: msg.content});
+                    });
+                }
+
+                // Fuentes
+                const fBox = document.getElementById('fuentes-box'), fList = document.getElementById('fuentes-list');
+                fList.textContent = '';
+                const fuentes = data.fuentes || [];
+                if (fuentes.length > 0) {
+                    fBox.classList.remove('hidden');
+                    fuentes.forEach(f => {
+                        const c = document.createElement('div'); c.className = 'source-card';
+                        const a = document.createElement('a'); a.href = f.url; a.target = '_blank'; a.rel = 'noopener noreferrer';
+                        a.className = 'text-xs text-blue-400 hover:text-blue-300'; a.textContent = f.title; c.appendChild(a);
+                        fList.appendChild(c);
+                    });
+                } else { fBox.classList.add('hidden'); }
+
+                // Show estado badge
+                const fb = document.getElementById('estado-feedback');
+                if (data.estado && data.estado !== 'pendiente') {
+                    const colors = {aprobada:'text-green-400',rechazada:'text-red-400',investigar:'text-purple-400'};
+                    fb.className = 'mt-3 text-sm font-medium ' + (colors[data.estado] || '');
+                    fb.textContent = 'Estado: ' + data.estado.toUpperCase();
+                    fb.classList.remove('hidden');
+                } else { fb.classList.add('hidden'); }
+
+                ['ficha-body','inv-body','cls-body','val-body'].forEach(id=>{document.getElementById(id).classList.remove('open')});
+                results.classList.remove('hidden');
+            } catch(e) { console.error('Error loading session:', e); }
+        }
+
+        function _render_safe(text) {
+            // Simple escape for chat messages loaded from DB
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML.replace(/\n/g, '<br>');
+        }
+
+        // Handle browser back/forward
+        window.addEventListener('popstate', function(e) {
+            if (e.state && e.state.sessionId) {
+                loadSession(e.state.sessionId);
+            } else {
+                // Back to home
+                currentId = '';
+                document.getElementById('results').classList.add('hidden');
+            }
+        });
+
         // ── Collapse ──
         function toggleCollapse(bodyId, toggleEl) {
             const body = document.getElementById(bodyId);
@@ -325,7 +428,6 @@
         dropZone.addEventListener('drop',ev=>{const f=ev.dataTransfer.files[0];if(f){const dt=new DataTransfer();dt.items.add(f);fileInput.files=dt.files;fileInput.dispatchEvent(new Event('change'))}});
 
         // ── Clasificar ──
-        let currentId='';let chatHistory=[];let currentContext={ficha_tecnica:'',clasificacion:'',validacion:'',investigacion:''};
 
         document.getElementById('form-clasificar').addEventListener('submit',async function(e){
             e.preventDefault();
@@ -377,6 +479,10 @@
                 ['ficha-body','inv-body','cls-body','val-body'].forEach(id=>{document.getElementById(id).classList.remove('open')});
                 document.querySelectorAll('.collapse-chevron').forEach(c=>c.classList.remove('open'));
                 results.classList.remove('hidden');
+                // Change URL to session URL (like ChatGPT /c/...)
+                if (currentId) {
+                    window.history.pushState({sessionId: currentId}, '', '/c/' + currentId);
+                }
             }catch(err){document.getElementById('error-message').textContent=err.message;errorBox.classList.remove('hidden')}
             finally{loading.classList.add('hidden');btn.disabled=false;btn.innerHTML='<i class="fas fa-search"></i> Clasificar Producto'}
         });
@@ -395,14 +501,14 @@
         // ── Chat ──
         function appendChat(role,html){const c=document.getElementById('chat-messages'),b=document.createElement('div');b.className='chat-bubble '+(role==='user'?'chat-user':'chat-assistant');const l=document.createElement('div');l.className='text-xs font-semibold mb-1 '+(role==='user'?'text-blue-400':'text-green-400');l.textContent=role==='user'?'T\u00fa':'ACA';b.appendChild(l);const d=document.createElement('div');d.className='markdown-body text-sm text-gray-300';if(role==='user')d.textContent=html;else d.insertAdjacentHTML('afterbegin',html);b.appendChild(d);c.appendChild(b);c.scrollTop=c.scrollHeight}
         async function sendChat(){const i=document.getElementById('chat-input'),btn=document.getElementById('btn-chat'),cl=document.getElementById('chat-loading'),msg=i.value.trim();if(!msg)return;appendChat('user',msg);i.value='';btn.disabled=true;cl.classList.remove('hidden');
-            try{const r=await fetch('/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({message:msg,ficha_tecnica:currentContext.ficha_tecnica,clasificacion:currentContext.clasificacion,validacion:currentContext.validacion,investigacion:currentContext.investigacion,history:chatHistory})});const d=await r.json();if(!r.ok)throw new Error(d.error);appendChat('assistant',d.reply_html);chatHistory.push({role:'user',content:msg},{role:'assistant',content:d.reply});if(chatHistory.length>20)chatHistory=chatHistory.slice(-20)}catch(e){appendChat('assistant','<p class="text-red-400">'+e.message+'</p>')}finally{btn.disabled=false;cl.classList.add('hidden')}}
+            try{const r=await fetch('/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({message:msg,clasificacion_id:currentId,ficha_tecnica:currentContext.ficha_tecnica,clasificacion:currentContext.clasificacion,validacion:currentContext.validacion,investigacion:currentContext.investigacion,history:chatHistory})});const d=await r.json();if(!r.ok)throw new Error(d.error);appendChat('assistant',d.reply_html);chatHistory.push({role:'user',content:msg},{role:'assistant',content:d.reply});if(chatHistory.length>20)chatHistory=chatHistory.slice(-20)}catch(e){appendChat('assistant','<p class="text-red-400">'+e.message+'</p>')}finally{btn.disabled=false;cl.classList.add('hidden')}}
         document.getElementById('btn-chat').addEventListener('click',sendChat);
         document.getElementById('chat-input').addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendChat()}});
 
         // ── Historial ──
         async function loadHistorial(estado){const list=document.getElementById('historial-list'),empty=document.getElementById('historial-empty');list.textContent='';empty.classList.add('hidden');let url='/historial';if(estado)url+='?estado='+estado;
             try{const r=await fetch(url);const d=await r.json();if(!d.registros||!d.registros.length){empty.classList.remove('hidden');return}
-                d.registros.forEach(reg=>{const row=document.createElement('div');row.className='hist-row flex items-center justify-between px-3';const left=document.createElement('div');left.className='flex-1 min-w-0';const t=document.createElement('p');t.className='text-sm text-gray-300 truncate';t.textContent=(reg.subpartida||'?')+' — '+(reg.ficha_tecnica||'').substring(0,80);const m=document.createElement('p');m.className='text-xs text-gray-500';m.textContent=new Date(reg.created_at).toLocaleDateString('es-CO',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'})+' | $'+Number(reg.costo_cop||0).toLocaleString('es-CO')+' COP | '+Number(reg.tiempo_segundos||0).toFixed(0)+'s';left.appendChild(t);left.appendChild(m);const badge=document.createElement('span');badge.className='status-badge status-'+(reg.estado||'pendiente');badge.textContent=reg.estado||'pendiente';row.appendChild(left);row.appendChild(badge);list.appendChild(row)})}catch(e){empty.textContent='Error';empty.classList.remove('hidden')}}
+                d.registros.forEach(reg=>{const row=document.createElement('div');row.className='hist-row flex items-center justify-between px-3';row.style.cursor='pointer';row.onclick=function(){window.history.pushState({sessionId:reg.id},'','/c/'+reg.id);loadSession(reg.id);showPage('clasificar')};const left=document.createElement('div');left.className='flex-1 min-w-0';const t=document.createElement('p');t.className='text-sm text-gray-300 truncate';t.textContent=(reg.subpartida||'?')+' — '+(reg.ficha_tecnica||'').substring(0,80);const m=document.createElement('p');m.className='text-xs text-gray-500';m.textContent=new Date(reg.created_at).toLocaleDateString('es-CO',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'})+' | $'+Number(reg.costo_cop||0).toLocaleString('es-CO')+' COP | '+Number(reg.tiempo_segundos||0).toFixed(0)+'s';left.appendChild(t);left.appendChild(m);const badge=document.createElement('span');badge.className='status-badge status-'+(reg.estado||'pendiente');badge.textContent=reg.estado||'pendiente';row.appendChild(left);row.appendChild(badge);list.appendChild(row)})}catch(e){empty.textContent='Error';empty.classList.remove('hidden')}}
 
         // ── Importar ──
         document.getElementById('form-importar').addEventListener('submit',async function(e){e.preventDefault();const fb=document.getElementById('import-result');fb.classList.add('hidden');

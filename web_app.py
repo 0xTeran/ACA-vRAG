@@ -53,9 +53,11 @@ from database import (
     get_or_create_usuario,
     get_usuario,
     guardar_clasificacion,
+    guardar_mensaje_chat,
     importar_conocimiento,
     increment_anon_count,
     listar_clasificaciones,
+    obtener_chat_mensajes,
     obtener_clasificacion,
     stats_conocimiento,
     verificar_codigo,
@@ -249,6 +251,27 @@ def index():
     return render_template("index.html")
 
 
+@app.route("/c/<session_id>")
+def session_view(session_id):
+    """Sirve la app con un ID de sesión (como ChatGPT /c/...)."""
+    return render_template("index.html", session_id=session_id)
+
+
+@app.route("/c/<session_id>/data")
+def session_data(session_id):
+    """Retorna los datos completos de una sesión (clasificación + chat)."""
+    registro = obtener_clasificacion(session_id)
+    if not registro:
+        return jsonify({"error": "Sesión no encontrada."}), 404
+
+    registro["investigacion_html"] = _render_markdown_safe(registro.get("investigacion", ""))
+    registro["clasificacion_html"] = _render_markdown_safe(registro.get("clasificacion", ""))
+    registro["validacion_html"] = _render_markdown_safe(registro.get("validacion", ""))
+    registro["chat_messages"] = obtener_chat_mensajes(session_id)
+
+    return jsonify(registro)
+
+
 @app.route("/clasificar", methods=["POST"])
 def clasificar():
     # ── Límite de uso anónimo ──
@@ -362,7 +385,7 @@ def clasificar():
             "limit": FREE_ANON_LIMIT,
         }))
         if not request.cookies.get("aca_anon"):
-            resp.set_cookie("aca_anon", anon_id, max_age=60*60*24*365, samesite="Lax", httponly=True)
+            resp.set_cookie("aca_anon", anon_id, max_age=60*60*24*365, samesite="Lax", httponly=True, secure=True)
         return resp
 
     except Exception as e:
@@ -487,22 +510,44 @@ def chat():
         if not user_message:
             return jsonify({"error": "El mensaje está vacío."}), 400
 
+        clasificacion_id = data.get("clasificacion_id", "")
+
         url_content = _extract_urls_content(user_message)
         enriched_message = user_message
         if url_content:
             enriched_message += "\n\n[Contenido descargado:]\n" + url_content
 
         messages = [{"role": "system", "content": CHAT_SYSTEM_PROMPT}]
+
+        # Cargar contexto desde BD si hay clasificacion_id, o desde el request
+        ficha = data.get("ficha_tecnica", "")
+        cls_text = data.get("clasificacion", "")
+        val_text = data.get("validacion", "")
+        inv_text = data.get("investigacion", "")
+
+        if clasificacion_id and not cls_text:
+            reg = obtener_clasificacion(clasificacion_id)
+            if reg:
+                ficha = reg.get("ficha_tecnica", "")
+                cls_text = reg.get("clasificacion", "")
+                val_text = reg.get("validacion", "")
+                inv_text = reg.get("investigacion", "")
+
         context_msg = (
-            f"## Contexto:\n\n### Ficha técnica:\n{data.get('ficha_tecnica', '')}\n\n"
-            f"### Clasificación:\n{data.get('clasificacion', '')}\n\n"
-            f"### Validación:\n{data.get('validacion', '')}\n\n"
-            f"### Investigación:\n{data.get('investigacion', '')}"
+            f"## Contexto:\n\n### Ficha técnica:\n{ficha}\n\n"
+            f"### Clasificación:\n{cls_text}\n\n"
+            f"### Validación:\n{val_text}\n\n"
+            f"### Investigación:\n{inv_text}"
         )
         messages.append({"role": "user", "content": context_msg})
         messages.append({"role": "assistant", "content": "Entendido. ¿En qué puedo ayudarte?"})
 
-        for entry in data.get("history", []):
+        # Cargar historial desde BD si hay clasificacion_id
+        history = data.get("history", [])
+        if clasificacion_id and not history:
+            history = obtener_chat_mensajes(clasificacion_id)
+
+        for entry in history:
             role = entry.get("role", "user")
             content = entry.get("content", "")
             if role in ("user", "assistant") and content:
@@ -514,6 +559,12 @@ def chat():
         response = client.chat.completions.create(model=MODEL, max_tokens=2048, messages=messages)
 
         reply = response.choices[0].message.content
+
+        # Persistir mensajes en Supabase
+        if clasificacion_id:
+            guardar_mensaje_chat(clasificacion_id, "user", user_message)
+            guardar_mensaje_chat(clasificacion_id, "assistant", reply)
+
         return jsonify({"reply": reply, "reply_html": _render_markdown_safe(reply)})
 
     except Exception as e:
@@ -561,7 +612,7 @@ def auth_status():
         "is_admin": _is_admin(user),
     }))
     if not request.cookies.get("aca_anon"):
-        resp.set_cookie("aca_anon", anon_id, max_age=60 * 60 * 24 * 365, samesite="Lax", httponly=True)
+        resp.set_cookie("aca_anon", anon_id, max_age=60 * 60 * 24 * 365, samesite="Lax", httponly=True, secure=True)
     return resp
 
 

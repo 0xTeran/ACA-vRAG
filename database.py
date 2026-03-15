@@ -217,6 +217,34 @@ def stats_conocimiento() -> dict:
     return {"total_registros": total.count or 0}
 
 
+# ── Chat persistente ──
+
+
+def guardar_mensaje_chat(clasificacion_id: str, role: str, content: str) -> dict:
+    """Guarda un mensaje de chat vinculado a una clasificación."""
+    client = get_client()
+    data = {
+        "clasificacion_id": clasificacion_id,
+        "role": role,
+        "content": content,
+    }
+    result = client.table("chat_mensajes").insert(data).execute()
+    return result.data[0] if result.data else data
+
+
+def obtener_chat_mensajes(clasificacion_id: str) -> list[dict]:
+    """Obtiene todos los mensajes de chat de una clasificación."""
+    client = get_client()
+    result = (
+        client.table("chat_mensajes")
+        .select("role, content, created_at")
+        .eq("clasificacion_id", clasificacion_id)
+        .order("created_at")
+        .execute()
+    )
+    return result.data or []
+
+
 # ── Auth / usuarios ──
 
 def get_anon_count(anon_id: str) -> int:
