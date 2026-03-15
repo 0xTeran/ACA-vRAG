@@ -50,9 +50,9 @@ export function Sidebar() {
       .catch(() => {})
   }, [pathname])
 
-  const filtered = search
+  const filtered = search.trim()
     ? records.filter(r => {
-        const s = search.toLowerCase()
+        const s = search.trim().toLowerCase()
         return (r.ficha_tecnica ?? '').toLowerCase().includes(s)
           || (r.subpartida ?? '').includes(s)
           || (r.fuente_nombre ?? '').toLowerCase().includes(s)
@@ -90,39 +90,50 @@ export function Sidebar() {
         borderRight: '1px solid var(--border)',
       }}>
         {/* Header */}
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 14px 10px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 12px 0' }}>
           <Link href="/" style={{ display: 'flex', alignItems: 'center', textDecoration: 'none' }}>
             <Logo height={20} />
           </Link>
-          <div style={{ display: 'flex', gap: 2 }}>
-            <Link href="/" style={iconBtnStyle} title="Nueva clasificación">
-              <PenSquare size={16} />
-            </Link>
-            <button onClick={() => setOpen(false)} style={iconBtnStyle} title="Cerrar sidebar">
-              <PanelLeftClose size={16} />
-            </button>
-          </div>
+          <button onClick={() => setOpen(false)} style={iconBtnStyle} title="Cerrar sidebar">
+            <PanelLeftClose size={16} />
+          </button>
         </div>
 
-        {/* Search */}
-        <div style={{ padding: '0 12px 8px' }}>
-          <div style={{
-            display: 'flex', alignItems: 'center', gap: 8,
-            background: 'var(--card)', border: '1px solid var(--border)',
-            borderRadius: 10, padding: '6px 10px',
-          }}>
-            <Search size={13} style={{ color: 'var(--text-3)', flexShrink: 0 }} />
+        {/* Search + New chat buttons */}
+        <div style={{ padding: '12px 12px 8px', display: 'flex', flexDirection: 'column', gap: 2 }}>
+          <button
+            onClick={() => setSearch(search ? '' : ' ')}
+            style={sideBtnStyle}
+            onMouseOver={e => e.currentTarget.style.background = 'rgba(128,128,128,.1)'}
+            onMouseOut={e => e.currentTarget.style.background = 'transparent'}
+          >
+            <Search size={16} /> Buscar
+          </button>
+          <Link href="/" style={{ ...sideBtnStyle, textDecoration: 'none' }}
+            onMouseOver={e => e.currentTarget.style.background = 'rgba(128,128,128,.1)'}
+            onMouseOut={e => e.currentTarget.style.background = 'transparent'}
+          >
+            <PenSquare size={16} /> Nueva clasificación
+          </Link>
+        </div>
+
+        {/* Search input (expandable) */}
+        {search !== '' && (
+          <div style={{ padding: '0 12px 8px' }}>
             <input
-              value={search}
-              onChange={e => setSearch(e.target.value)}
-              placeholder="Buscar clasificaciones..."
+              autoFocus
+              value={search === ' ' ? '' : search}
+              onChange={e => setSearch(e.target.value || ' ')}
+              onBlur={() => { if (search.trim() === '') setSearch('') }}
+              placeholder="Buscar por producto o subpartida..."
               style={{
-                flex: 1, background: 'none', border: 'none', outline: 'none',
+                width: '100%', background: 'var(--card)', border: '1px solid var(--border)',
+                borderRadius: 10, padding: '8px 12px', outline: 'none',
                 color: 'var(--text)', fontFamily: 'inherit', fontSize: '.8rem',
               }}
             />
           </div>
-        </div>
+        )}
 
         {/* History list */}
         <div style={{ flex: 1, overflowY: 'auto', padding: '0 8px' }}>
@@ -187,6 +198,15 @@ const iconBtnStyle: React.CSSProperties = {
   color: 'var(--text-3)', padding: 6, borderRadius: 8,
   display: 'flex', alignItems: 'center', justifyContent: 'center',
   transition: 'background .15s', textDecoration: 'none',
+}
+
+const sideBtnStyle: React.CSSProperties = {
+  display: 'flex', alignItems: 'center', gap: 12,
+  padding: '10px 12px', borderRadius: 10,
+  background: 'transparent', border: 'none', cursor: 'pointer',
+  color: 'var(--text)', fontFamily: 'inherit', fontSize: '.88rem',
+  fontWeight: 400, transition: 'background .15s', width: '100%',
+  textAlign: 'left',
 }
 
 const bottomLinkStyle: React.CSSProperties = {
