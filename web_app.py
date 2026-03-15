@@ -409,8 +409,17 @@ def clasificar():
         res_cls = clasificar_producto(ficha_tecnica, clasificador_contexto, investigacion, model=selected_model)
         clasificacion = res_cls["clasificacion_raw"]
 
-        # Paso 3: Validador (con BD estructurada para verificar existencia)
-        res_val = validar_clasificacion(ficha_tecnica, clasificacion, arancel_ctx, arancel_completo=ARANCEL_TEXT, model=selected_model)
+        # Paso 3: Validador - búsqueda RAG independiente para verificar
+        # Busca con la subpartida propuesta + producto para encontrar notas de exclusión
+        sub_propuesta = re.search(r'\d{4}\.\d{2}\.\d{2}\.\d{2}', clasificacion)
+        val_search = ficha_tecnica
+        if sub_propuesta:
+            val_search += f" subpartida {sub_propuesta.group(0)} partida {sub_propuesta.group(0)[:5]}"
+        validador_ctx = buscar_decreto_semantico(val_search, top_k=10)
+        if arancel_ctx:
+            validador_ctx += "\n\n" + arancel_ctx
+
+        res_val = validar_clasificacion(ficha_tecnica, clasificacion, validador_ctx, arancel_completo=ARANCEL_TEXT, model=selected_model)
         validacion = res_val["validacion_raw"]
 
         elapsed = round(time.time() - start_time, 2)
