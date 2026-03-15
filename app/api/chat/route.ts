@@ -1,12 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getSession } from '@/lib/auth'
 
 export async function POST(req: NextRequest) {
-  const session = await getSession()
-  if (!session.userId) {
-    return NextResponse.json({ error: 'No autorizado.' }, { status: 401 })
-  }
-
   const body = await req.json()
   const flaskUrl = `${process.env.FLASK_INTERNAL_URL ?? 'http://localhost:5050'}/chat`
 

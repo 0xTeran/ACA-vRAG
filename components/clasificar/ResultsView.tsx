@@ -1,18 +1,14 @@
 'use client'
 
 import { useState } from 'react'
-import ReactMarkdown from 'react-markdown'
-import rehypeSanitize from 'rehype-sanitize'
 import { CheckCircle, XCircle, Search, Clock, DollarSign, Zap, ExternalLink } from 'lucide-react'
 import { ClasificarResult } from '@/types'
 
 export function ResultsView({ result }: { result: ClasificarResult }) {
   const [estado, setEstado] = useState<string | null>(null)
   const [notas, setNotas] = useState('')
-  const [chatInput, setChatInput] = useState('')
-  const [chatHistory, setChatHistory] = useState<{ role: string; content: string }[]>([])
-  const [chatLoading, setChatLoading] = useState(false)
   const [savingEstado, setSavingEstado] = useState(false)
+  const [showNotas, setShowNotas] = useState(false)
 
   const saveEstado = async (e: string) => {
     setSavingEstado(true)
@@ -28,35 +24,6 @@ export function ResultsView({ result }: { result: ClasificarResult }) {
     }
   }
 
-  const sendChat = async () => {
-    if (!chatInput.trim() || chatLoading) return
-    const msg = chatInput.trim()
-    setChatInput('')
-    const newHistory = [...chatHistory, { role: 'user', content: msg }]
-    setChatHistory(newHistory)
-    setChatLoading(true)
-    try {
-      const r = await fetch('/api/chat', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          pregunta: msg,
-          historial: newHistory,
-          contexto: {
-            ficha_tecnica: result.ficha_tecnica,
-            clasificacion: result.clasificacion_raw,
-            validacion: result.validacion_raw,
-            investigacion: result.investigacion_raw,
-          },
-        }),
-      })
-      const d = await r.json()
-      setChatHistory([...newHistory, { role: 'assistant', content: d.respuesta ?? d.error ?? 'Sin respuesta' }])
-    } finally {
-      setChatLoading(false)
-    }
-  }
-
   const card = (title: string, html: string) => (
     <div style={{ background: 'var(--card)', border: '1px solid var(--border-2)', borderRadius: 'var(--r)', overflow: 'hidden', marginBottom: 12 }}>
       <div style={{ padding: '12px 16px 10px', borderBottom: '1px solid var(--border)', fontSize: '.78rem', fontWeight: 600, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '.04em' }}>
@@ -67,8 +34,7 @@ export function ResultsView({ result }: { result: ClasificarResult }) {
   )
 
   return (
-    <div style={{ maxWidth: 720, margin: '0 auto', padding: '24px 20px 24px' }}>
-
+    <div>
       {/* Metrics */}
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 16 }}>
         {[
@@ -86,14 +52,6 @@ export function ResultsView({ result }: { result: ClasificarResult }) {
           </div>
         ))}
       </div>
-
-      {/* Ficha técnica */}
-      {result.ficha_tecnica && (
-        <div style={{ background: 'var(--card)', border: '1px solid var(--border-2)', borderRadius: 'var(--r)', padding: '12px 16px', marginBottom: 12, fontSize: '.85rem', color: 'var(--text-2)', whiteSpace: 'pre-wrap' }}>
-          <span style={{ fontSize: '.72rem', fontWeight: 600, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '.04em', display: 'block', marginBottom: 6 }}>Ficha técnica</span>
-          {result.ficha_tecnica}
-        </div>
-      )}
 
       {card('Investigación', result.investigacion_html)}
       {card('Clasificación arancelaria', result.clasificacion_html)}
@@ -114,70 +72,51 @@ export function ResultsView({ result }: { result: ClasificarResult }) {
         </div>
       )}
 
-      {/* Decision */}
+      {/* Decision - floating style */}
       {!estado && (
-        <div style={{ background: 'var(--card)', border: '1px solid var(--border-2)', borderRadius: 'var(--r)', padding: '16px', marginBottom: 12 }}>
-          <div style={{ fontSize: '.8rem', fontWeight: 600, color: 'var(--text-3)', marginBottom: 10 }}>¿Esta clasificación es correcta?</div>
-          <textarea
-            value={notas}
-            onChange={(e) => setNotas(e.target.value)}
-            placeholder="Notas opcionales…"
-            style={{ width: '100%', background: 'var(--card-2)', border: '1px solid var(--border)', borderRadius: 8, padding: '8px 12px', color: 'var(--text)', fontFamily: 'inherit', fontSize: '.84rem', resize: 'none', outline: 'none', marginBottom: 10 }}
-            rows={2}
-          />
-          <div style={{ display: 'flex', gap: 8 }}>
-            <button onClick={() => saveEstado('aprobada')} disabled={savingEstado} style={{ flex: 1, padding: '9px', borderRadius: 8, background: 'rgba(74,222,128,.1)', border: '1px solid rgba(74,222,128,.25)', color: 'var(--green)', cursor: 'pointer', fontFamily: 'inherit', fontSize: '.82rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
-              <CheckCircle size={13} /> Aprobar
+        <div style={{
+          background: 'var(--card)', border: '1px solid var(--border-2)',
+          borderRadius: 14, padding: '10px 14px', marginBottom: 12,
+        }}>
+          {showNotas && (
+            <textarea
+              value={notas}
+              onChange={(e) => setNotas(e.target.value)}
+              placeholder="Notas opcionales…"
+              style={{ width: '100%', background: 'var(--card-2)', border: '1px solid var(--border)', borderRadius: 8, padding: '8px 12px', color: 'var(--text)', fontFamily: 'inherit', fontSize: '.82rem', resize: 'none', outline: 'none', marginBottom: 8 }}
+              rows={2}
+            />
+          )}
+          <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+            <button onClick={() => saveEstado('aprobada')} disabled={savingEstado} style={{ flex: 1, padding: '7px', borderRadius: 8, background: 'rgba(74,222,128,.08)', border: '1px solid rgba(74,222,128,.2)', color: 'var(--green)', cursor: 'pointer', fontFamily: 'inherit', fontSize: '.78rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5 }}>
+              <CheckCircle size={12} /> Aprobar
             </button>
-            <button onClick={() => saveEstado('rechazada')} disabled={savingEstado} style={{ flex: 1, padding: '9px', borderRadius: 8, background: 'rgba(248,113,113,.1)', border: '1px solid rgba(248,113,113,.25)', color: 'var(--red)', cursor: 'pointer', fontFamily: 'inherit', fontSize: '.82rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
-              <XCircle size={13} /> Rechazar
+            <button onClick={() => saveEstado('rechazada')} disabled={savingEstado} style={{ flex: 1, padding: '7px', borderRadius: 8, background: 'rgba(248,113,113,.08)', border: '1px solid rgba(248,113,113,.2)', color: 'var(--red)', cursor: 'pointer', fontFamily: 'inherit', fontSize: '.78rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5 }}>
+              <XCircle size={12} /> Rechazar
             </button>
-            <button onClick={() => saveEstado('investigar')} disabled={savingEstado} style={{ flex: 1, padding: '9px', borderRadius: 8, background: 'rgba(251,191,36,.1)', border: '1px solid rgba(251,191,36,.25)', color: 'var(--yellow)', cursor: 'pointer', fontFamily: 'inherit', fontSize: '.82rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
-              <Search size={13} /> Investigar
+            <button onClick={() => saveEstado('investigar')} disabled={savingEstado} style={{ flex: 1, padding: '7px', borderRadius: 8, background: 'rgba(251,191,36,.08)', border: '1px solid rgba(251,191,36,.2)', color: 'var(--yellow)', cursor: 'pointer', fontFamily: 'inherit', fontSize: '.78rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5 }}>
+              <Search size={12} /> Investigar
             </button>
+            {!showNotas && (
+              <button onClick={() => setShowNotas(true)} style={{ padding: '7px 10px', borderRadius: 8, background: 'none', border: '1px solid var(--border)', color: 'var(--text-3)', cursor: 'pointer', fontFamily: 'inherit', fontSize: '.72rem' }}>
+                + Nota
+              </button>
+            )}
           </div>
         </div>
       )}
 
       {estado && (
         <div style={{
-          padding: '10px 14px', borderRadius: 8, marginBottom: 12,
+          padding: '8px 14px', borderRadius: 8, marginBottom: 12,
           background: estado === 'aprobada' ? 'rgba(74,222,128,.08)' : estado === 'rechazada' ? 'rgba(248,113,113,.08)' : 'rgba(251,191,36,.08)',
           border: `1px solid ${estado === 'aprobada' ? 'rgba(74,222,128,.2)' : estado === 'rechazada' ? 'rgba(248,113,113,.2)' : 'rgba(251,191,36,.2)'}`,
           color: estado === 'aprobada' ? 'var(--green)' : estado === 'rechazada' ? 'var(--red)' : 'var(--yellow)',
-          fontSize: '.84rem',
+          fontSize: '.82rem',
         }}>
           Clasificación marcada como <strong>{estado}</strong>
         </div>
       )}
-
-      {/* Chat */}
-      <div style={{ background: 'var(--card)', border: '1px solid var(--border-2)', borderRadius: 'var(--r)', padding: '14px 16px', marginBottom: 12 }}>
-        <div style={{ fontSize: '.78rem', fontWeight: 600, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '.04em', marginBottom: 10 }}>Consultar sobre esta clasificación</div>
-        {chatHistory.map((m, i) => (
-          <div key={i} style={{ marginBottom: 10 }}>
-            <div style={{ fontSize: '.75rem', color: 'var(--text-3)', marginBottom: 3 }}>{m.role === 'user' ? 'Tú' : 'ACA'}</div>
-            {m.role === 'assistant'
-              ? <div className="prose" style={{ fontSize: '.86rem' }}><ReactMarkdown rehypePlugins={[rehypeSanitize]}>{m.content}</ReactMarkdown></div>
-              : <div style={{ fontSize: '.86rem', color: 'var(--text-2)' }}>{m.content}</div>
-            }
-          </div>
-        ))}
-        {chatLoading && <div style={{ fontSize: '.84rem', color: 'var(--text-3)' }}>Pensando…</div>}
-        <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
-          <input
-            value={chatInput}
-            onChange={(e) => setChatInput(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && sendChat()}
-            placeholder="¿Tienes alguna duda?"
-            style={{ flex: 1, background: 'var(--card-2)', border: '1px solid var(--border)', borderRadius: 8, padding: '8px 12px', color: 'var(--text)', fontFamily: 'inherit', fontSize: '.84rem', outline: 'none' }}
-          />
-          <button onClick={sendChat} disabled={chatLoading} style={{ background: 'var(--text)', color: 'var(--bg)', border: 'none', borderRadius: 8, padding: '8px 14px', cursor: 'pointer', fontFamily: 'inherit', fontSize: '.82rem' }}>
-            Enviar
-          </button>
-        </div>
-      </div>
-
     </div>
   )
 }
