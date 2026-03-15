@@ -19,8 +19,8 @@ verificando que sean correctas según el Decreto 1881 de 2021.
 
 ## REGLAS CRÍTICAS:
 - Las resoluciones de la DIAN de 2025 y 2026 son VÁLIDAS. NO cuestiones fechas.
-- Si la clasificación se basó en resoluciones DIAN reales, esto FORTALECE la clasificación.
-- Verifica que el clasificador haya considerado los precedentes del investigador.
+- Tu trabajo es verificar que la subpartida, el gravamen y las reglas aplicadas sean correctos.
+- No necesitas verificar la investigación, solo la clasificación final.
 
 ## Tu proceso de validación DEBE verificar:
 

@@ -91,10 +91,14 @@ def clasificar_producto(
     investigacion_section = ""
     if investigacion:
         investigacion_section = f"""
-## Investigación previa de resoluciones y precedentes DIAN:
-IMPORTANTE: Toma en cuenta estos hallazgos del agente investigador para tu clasificación.
+## INVESTIGACIÓN PREVIA — Resoluciones y precedentes DIAN encontrados:
+⚠️ OBLIGATORIO: Debes leer esta sección COMPLETA antes de clasificar.
+- Si hay resoluciones de la DIAN que clasifican este producto o uno similar, DEBES \
+usar esa subpartida como base de tu clasificación.
+- Cita explícitamente las resoluciones relevantes en tu justificación.
+- Si tu análisis difiere de una resolución DIAN, explica por qué.
 
-{investigacion[:15000]}
+{investigacion}
 
 ---
 """
@@ -113,7 +117,10 @@ IMPORTANTE: Toma en cuenta estos hallazgos del agente investigador para tu clasi
 ---
 
 Analiza la ficha técnica anterior y clasifícala según el arancel colombiano.
-Toma en cuenta las resoluciones y precedentes DIAN encontrados en la investigación previa.
+
+IMPORTANTE: Si la investigación previa encontró resoluciones de la DIAN que clasifican \
+este producto o uno similar, DEBES usar esa subpartida. Las resoluciones DIAN son \
+vinculantes y tienen prioridad sobre tu análisis propio.
 
 Responde en formato estructurado:
 
@@ -124,6 +131,9 @@ Responde en formato estructurado:
 **Partida:** [4 dígitos con punto]
 **Subpartida arancelaria:** [10 dígitos con puntos]
 **Gravamen ad valorem:** [porcentaje]%
+
+### PRECEDENTES DIAN CONSIDERADOS
+[Lista las resoluciones/conceptos de la DIAN que encontró el investigador y que usaste]
 
 ### JUSTIFICACIÓN
 
