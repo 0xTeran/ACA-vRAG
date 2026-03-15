@@ -187,18 +187,27 @@ export function Sidebar() {
             {group.items.map((r) => (
               <div key={r.id} style={{ position: 'relative' }}
                 onMouseEnter={() => setHoverId(r.id)} onMouseLeave={() => setHoverId(null)}>
-                <Link href={`/c/${r.id}`} onClick={() => setMobileOpen(false)} style={{
-                  display: 'flex', alignItems: 'center', padding: '8px 10px', borderRadius: 8,
+                <Link href={`/c/${r.id}`} onClick={() => setMobileOpen(false)} title={r.ficha_tecnica?.slice(0, 300) || ''} style={{
+                  display: 'flex', flexDirection: 'column', padding: '8px 10px', borderRadius: 8,
                   textDecoration: 'none', fontSize: '.82rem', lineHeight: 1.4,
                   color: activeId === r.id ? 'var(--text)' : 'var(--text-2)',
                   background: activeId === r.id ? 'rgba(128,128,128,.12)' : 'transparent',
-                  transition: 'background .15s',
+                  transition: 'background .15s', gap: 2,
                 }}
                   onMouseOver={e => { if (activeId !== r.id) e.currentTarget.style.background = 'rgba(128,128,128,.06)' }}
                   onMouseOut={e => { if (activeId !== r.id) e.currentTarget.style.background = 'transparent' }}>
-                  <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1, paddingRight: 20 }}>
+                  <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', paddingRight: 20 }}>
                     {getTitle(r)}
                   </span>
+                  {activeId === r.id && r.ficha_tecnica && (
+                    <span style={{
+                      fontSize: '.7rem', color: 'var(--text-3)', lineHeight: 1.35,
+                      display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical' as const,
+                      overflow: 'hidden', whiteSpace: 'normal',
+                    }}>
+                      {r.ficha_tecnica.slice(0, 200)}
+                    </span>
+                  )}
                 </Link>
 
                 {(hoverId === r.id || menuId === r.id) && (
