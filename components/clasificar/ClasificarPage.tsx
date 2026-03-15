@@ -49,6 +49,7 @@ export function ClasificarPage({ sessionId }: Props) {
 
   const hasResult = currentSessionId !== ''
   const isEmpty = messages.length === 0
+  const [dragging, setDragging] = useState(false)
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -201,8 +202,8 @@ export function ClasificarPage({ sessionId }: Props) {
     setFile(null)
     if (textareaRef.current) textareaRef.current.style.height = 'auto'
 
-    // If we already have a result, send as chat follow-up
-    if (hasResult) {
+    // If we already have a result: file → new classification, text → chat
+    if (hasResult && !file) {
       await sendChatMessage(userText)
       return
     }
@@ -303,10 +304,16 @@ export function ClasificarPage({ sessionId }: Props) {
   }, [loading, text, file, anonLimit, openAuth, hasResult, sendChatMessage])
 
   return (
-    <div style={{
-      position: 'fixed', inset: 0, paddingTop: 'var(--topbar-h)',
-      display: 'flex', flexDirection: 'column', overflow: 'hidden',
-    }}>
+    <div
+      style={{
+        position: 'fixed', inset: 0, paddingTop: 'var(--topbar-h)',
+        display: 'flex', flexDirection: 'column', overflow: 'hidden',
+        ...(dragging ? { outline: '2px dashed var(--blue)', outlineOffset: -4 } : {}),
+      }}
+      onDragOver={(e) => { e.preventDefault(); setDragging(true) }}
+      onDragLeave={(e) => { if (e.currentTarget === e.target) setDragging(false) }}
+      onDrop={(e) => { e.preventDefault(); setDragging(false); const f = e.dataTransfer.files[0]; if (f) handleFile(f) }}
+    >
       {/* Chat scroll area */}
       <div style={{ flex: 1, overflowY: 'auto', overscrollBehavior: 'contain' }}>
 
@@ -464,25 +471,21 @@ export function ClasificarPage({ sessionId }: Props) {
                 padding: '4px 0',
               }}
             />
-            {!hasResult && (
-              <>
-                <input ref={fileRef} type="file" accept="image/*,.pdf" style={{ display: 'none' }}
-                  onChange={(e) => e.target.files?.[0] && handleFile(e.target.files[0])} />
-                <button
-                  onClick={() => fileRef.current?.click()}
-                  disabled={loading}
-                  style={{
-                    background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-3)',
-                    padding: 7, borderRadius: 8, display: 'flex', transition: 'background .15s',
-                  }}
-                  onMouseOver={(e) => (e.currentTarget.style.background = 'rgba(128,128,128,.1)')}
-                  onMouseOut={(e) => (e.currentTarget.style.background = 'none')}
-                  title="Adjuntar"
-                >
-                  <Paperclip size={15} />
-                </button>
-              </>
-            )}
+            <input ref={fileRef} type="file" accept="image/*,.pdf" style={{ display: 'none' }}
+              onChange={(e) => e.target.files?.[0] && handleFile(e.target.files[0])} />
+            <button
+              onClick={() => fileRef.current?.click()}
+              disabled={loading}
+              style={{
+                background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-3)',
+                padding: 7, borderRadius: 8, display: 'flex', transition: 'background .15s',
+              }}
+              onMouseOver={(e) => (e.currentTarget.style.background = 'rgba(128,128,128,.1)')}
+              onMouseOut={(e) => (e.currentTarget.style.background = 'none')}
+              title="Adjuntar imagen o PDF"
+            >
+              <Paperclip size={15} />
+            </button>
             <button
               onClick={submit}
               disabled={loading || (!text.trim() && !file)}

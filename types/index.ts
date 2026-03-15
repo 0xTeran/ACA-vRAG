@@ -13,7 +13,8 @@ export interface AuthState {
 
 export interface ClasificacionRecord {
   id: string
-  descripcion: string
+  descripcion?: string
+  ficha_tecnica?: string
   subpartida: string
   estado: 'pendiente' | 'aprobada' | 'rechazada' | 'investigar'
   costo_cop: number

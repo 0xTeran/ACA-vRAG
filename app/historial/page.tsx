@@ -60,7 +60,7 @@ export default function HistorialPage() {
         {registros.map((r) => (
           <Link
             key={r.id}
-            href={`/historial/${r.id}`}
+            href={`/c/${r.id}`}
             style={{
               display: 'grid', gridTemplateColumns: '1fr auto auto',
               alignItems: 'center', gap: 12,
