@@ -21,6 +21,12 @@
   --blue: #60a5fa;
   --r: 12px;
   --topbar-h: 52px;
+  --sidebar-w: 280px;
+  --sidebar-bg: #0a0a0a;
+}
+
+@media (max-width: 768px) {
+  :root { --sidebar-w: 0px; }
 }
 
 [data-theme="light"] {
@@ -38,6 +44,7 @@
   --topbar-bg: rgba(244,244,245,0.92);
   --topbar-border: rgba(0,0,0,0.08);
   --scrollbar: #ccc;
+  --sidebar-bg: #f0f0f1;
   --green: #16a34a;
   --red: #dc2626;
   --yellow: #d97706;
